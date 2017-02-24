@@ -1,0 +1,3 @@
+[submodule "sparc-navigation"]
+	path = sparc-navigation
+	url = git@github.com:ami-lab/sparc-navigation.git
