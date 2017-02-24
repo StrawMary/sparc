@@ -1,6 +1,7 @@
 [submodule "sparc-navigation"]
 	path = sparc-navigation
 	url = git@github.com:ami-lab/sparc-navigation.git
+	branch = master
 [submodule "sparc-vision"]
 	path = sparc-vision
 	url = git@github.com:ami-lab/sparc-vision.git
