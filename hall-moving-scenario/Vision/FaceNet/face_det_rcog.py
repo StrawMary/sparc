@@ -45,8 +45,6 @@ class FaceDetectRecog:
             det = bounding_boxes[:, 0:4]
             img_size = np.asarray(frame.shape)[0:2]
 
-            cropped = []
-            scaled = []
             scaled_reshape = []
             bb = np.zeros((nrof_faces,4), dtype=np.int32)
             embedding_array = []
@@ -63,14 +61,14 @@ class FaceDetectRecog:
                     print('Face is inner of range!')
                     continue
 
-                cropped.append(frame[bb[i][1]:bb[i][3], bb[i][0]:bb[i][2], :])
-                cropped[i] = flip(cropped[i], False)
-                scaled.append(misc.imresize(cropped[i], (image_size, image_size), interp='bilinear'))
-                scaled[i] = cv2.resize(scaled[i], (input_image_size,input_image_size),
+                cropped = frame[bb[i][1]:bb[i][3], bb[i][0]:bb[i][2], :]
+                cropped = flip(cropped, False)
+                scaled = misc.imresize(cropped, (image_size, image_size), interp='bilinear')
+                scaled = cv2.resize(scaled, (input_image_size,input_image_size),
                                        interpolation=cv2.INTER_CUBIC)
-                scaled[i] = prewhiten(scaled[i])
-                scaled_reshape.append(scaled[i].reshape(-1,input_image_size,input_image_size,3))
-                feed_dict = {images_placeholder: scaled_reshape[i], phase_train_placeholder: False}
+                scaled = prewhiten(scaled)
+                scaled_reshape = scaled.reshape(-1,input_image_size,input_image_size,3)
+                feed_dict = {images_placeholder: scaled_reshape, phase_train_placeholder: False}
                 emb_array[0, :] = self.sess.run(embeddings, feed_dict=feed_dict)
                 embedding_array.append(emb_array)
         else:
@@ -84,7 +82,7 @@ class FaceDetectRecog:
         HumanNames = os.listdir(aligned_faces_dir)
         HumanNames.sort()
         personName = ''
-        
+
         if len(HumanNames) == 2:
             face_treshold = 0.9
         else:
@@ -106,8 +104,10 @@ class FaceDetectRecog:
             for H_i in HumanNames:
                 if HumanNames[best_class_indices[0]] == H_i:
                     personName = HumanNames[best_class_indices[0]]
+
+        score = best_class_probabilities[0]
         
-        return personName
+        return personName, score
         
         
     def classifyFacesFromFrame(self, initialFrame, model_temporary, model_permanent, show = False):
@@ -123,17 +123,11 @@ class FaceDetectRecog:
             frame = cv2.resize(frame, (0,0), fx=0.5, fy=0.5)
 
         people = []
-        if bb != []:       
+        if bb != []:
             for b, emb_array in zip(bb, embedding_array):
-                personName1 = self.classifyBox(emb_array, model_temporary, temporaryAlignedPeopleFolder)
-                personName2 = self.classifyBox(emb_array, model_permanent, permanentAlignedPeopleFolder)
-                
-                cv2.rectangle(frame, (b[0], b[1]), (b[2], b[3]), (0, 255, 0), 2)
-                text_x = b[0]
-                text_y = b[3] + 20
-                cv2.putText(frame, "P:%s, T:%s" % (personName2, personName1), (text_x, text_y), cv2.FONT_HERSHEY_COMPLEX_SMALL,
-                                                1, (0, 0, 255), thickness=1, lineType=2)
-                
+                personName1, score1 = self.classifyBox(emb_array, model_temporary, temporaryAlignedPeopleFolder)
+                personName2, score2 = self.classifyBox(emb_array, model_permanent, permanentAlignedPeopleFolder)
+
                 # if the person is in the short time memory, it will return (person_name, true)        
                 # if the person is a permanent user, but is not in the short term memory returns (person_name, false)
                 # if the person is neither a permanent user, nor in the short time memory returns (None, false)
@@ -142,16 +136,40 @@ class FaceDetectRecog:
                 elif personName2 != '':
                     people.append((b, personName2, False))
                 else:
-                    people.append((b, '', False))      
-    
+                    people.append((b, '', False))
+
         if show:
             cv2.imshow('Frame', frame)   
             k = cv2.waitKey(1)
 
-        #result.put((people, frame))
-        return people, frame
+        #result['faces'] = people
+        return people
 
-    
+
+    def drawBBoxFaces(self, image, people, ids):
+        for (b, name, isInShortMemory), index in zip(people, range(len(people))):
+            personName2 = ''
+            personName1 = ''
+            if isInShortMemory:
+                personName1 = name
+                personName2 = name
+            elif name != '':
+                personName2 = name
+
+            left, top, right, bottom = b[0], b[1], b[2], b[3]
+
+            cv2.rectangle(image, (left, top), (right, bottom), (0, 255, 0), 2)
+            # cv2.line(image, (left, top), (right, top), (255, 0, 0), 5) # sus
+            # cv2.line(image, (right, top), (right, bottom), (0, 0, 255), 5) # jos
+            text_x = b[0]
+            text_y = b[3] + 20
+            cv2.putText(image, "P:%s, T:%s, id:%s" % (personName2, personName1, ids[index]),
+                        (text_x, text_y), cv2.FONT_HERSHEY_COMPLEX_SMALL,
+                        1, (0, 0, 255), thickness=1, lineType=2)
+
+
+        return image
+
     
 """
 def identifyPerson(self, frame, model, aligned_faces_dir, resize=False):    

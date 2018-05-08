@@ -1,15 +1,4 @@
 
-
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
-import sys
-naoqi_path = "/home/sparc-308/workspace/stefania/pynaoqi-python2.7/lib/python2.7/site-packages"
-sys.path.insert(0, naoqi_path)
-
-from image_provider import ImageProvider
-
 import tensorflow as tf
 from scipy import misc
 import cv2

@@ -1,25 +1,17 @@
 import sys
-
-naoqi_path = "/home/sparc-308/workspace/stefania/pynaoqi-python2.7/lib/python2.7/site-packages"
-sys.path.insert(0, naoqi_path)
-
 import cv2
-import pickle
-import socket
 import traceback
 import tensorflow as tf
-from multiprocessing import Process, Queue
-from multiprocessing.pool import ThreadPool
+import numpy as np
+import pyttsx3
 
 # Vision
-from Vision.image_provider import ImageProvider
-from Vision.Yolo2.people_detector import PeopleDetector
+# from Vision.Yolo2.people_detector import PeopleDetector
 from Vision.FaceNet.face_det_rcog import FaceDetectRecog
 from Vision.FaceNet.facenet import load_model
 from Vision.FaceNet.detect_face import create_mtcnn
-
-# TCP Communication
-from TCPCommunication.data_sender import TCPDataSender
+from Vision.Tracking.tracker import Tracker
+from Utils.testThreadPool import ThreadPool
 
 # Trigger Generator
 from TaskManagement.tasksManagement import TriggerGenerator
@@ -27,160 +19,102 @@ from TaskManagement.tasksManagement import TriggerGenerator
 # Short time memory
 from ShortTermMemory.short_time_memory import ShortTermMemory
 
-send_data = False
-robot_stream = True
-ip_fast = "192.168.0.115"
-ip_local = "172.19.11.32"
-
-ip = ip_fast
-port = 9559
-frameRate = 30
-
 class Main(object):
-    def __init__(self, app, sess, pnet, rnet, onet):
-        self.data_sender = TCPDataSender()
+    def __init__(self, sess, pnet, rnet, onet):
+
+        self.results = {'bodies': (), 'faces': [], 'peopleMet': [],
+                        'locations': [], 'speechRecog': ''}
 
         # Vision
-        self.people_detector = PeopleDetector()
+        # self.people_detector = PeopleDetector()
         self.face_detect_recog = FaceDetectRecog(sess, pnet, rnet, onet)
-        self.triggerGenerator = TriggerGenerator()
+        self.tracker = Tracker()
 
         # Short time memory
         self.shortTimeMemory = ShortTermMemory(self.face_detect_recog)
 
-        # recognition_threshold = 0.5
-        # self.face_detect_recog = FaceNetDetector("./Vision/FaceNet", recognition_threshold)
+        # Triggers objects
+        self.triggerGenerator = TriggerGenerator(self.results,
+                                                 self.shortTimeMemory)
+        self.speekEngine = pyttsx3.init()
 
         super(Main, self).__init__()
-        if robot_stream:
-            self.image_provider = ImageProvider(ip, port, frameRate)  # from Pepper
-            app.start()
-            self.image_provider.connect()
-        else:
-            self.camera = cv2.VideoCapture(-1)  # Get images from camera
+        self.camera = cv2.VideoCapture(1)  # Get images from camera
+
 
     def run(self):
-        print("Waiting for connection...")
-        if send_data:
-            self.data_sender.start()
-        print("Client connected.")
 
-        pool = ThreadPool(processes=1)
+        pool = ThreadPool(4)
 
-        try:
-            index = 0
-            while True:
-                if robot_stream:
-                    image, depth_image, torsoFrame, robotFrame, timestamp = self.image_provider.get_cv_image()
+        while True:
 
-                    # cv2.imshow('image', image)
-                    # k = cv2.waitKey(1)
-                    # if k == 27:  # wait for ESC key to exit
-                    #     cv2.destroyAllWindows()
-                    # elif k == ord('s'):  # wait for 's' key to save and exit
-                    #     cv2.imwrite('/home/sparc-308/workspace/miruna/new_scenario/poze_noi/stefania%s.png' % (index), image)
-                    #     index += 1
-                else:
-                    _, image = self.camera.read() # Get images from camera
+            _, image = self.camera.read() # Get images from camera
 
-                    torsoFrame = []
-                    robotFrame = []
-                    timestamp = []
+            # cv2.imshow('image', image)
+            # k = cv2.waitKey(1)
+            # if k == 27:  # wait for ESC key to exit
+            #     cv2.destroyAllWindows()
+            # elif k == ord('s'):  # wait for 's' key to save and exit
+            #     cv2.imwrite('/home/sparc-308/workspace/miruna/new_scenario/poze_noi/stefania%s.png' % (index), image)
+            #     index += 1
 
-                # cv2.imshow("Image", image)
-                # cv2.waitKey(1)
+            # print(index)
+            # index += 1
 
-                # Without processes --------------------------------------------
-                # Use YOLO to detect people in the RGB image.
-                people_bboxes, people_scores = self.people_detector.detect(image)
-                #
-                # # Use FaceNet to detect and recognize faces in RGB image.
-                people, imageWithBoxes = self.face_detect_recog.classifyFacesFromFrame(image,
-                                        self.shortTimeMemory.model_temporary,
-                                        self.shortTimeMemory.model_permanent)
+            # # Use YOLO to detect people in frames.
+            # pool.add_task(self.people_detector.detect, image, results)
 
-                # Start the processes for tasks --------------------------------
-                # Use YOLO to detect people in the RGB image.
-                # resultPeopleDetect = Queue()
-                # procPeopleDetect = Process(target=self.people_detector.detect,
-                #                            args=(image, resultPeopleDetect))
-                # procPeopleDetect.start()
-                #
-                # Use FaceNet to detect and recognize faces in RGB image.
-                # resultFaceRecog = Queue()
-                # procFaceRecog = Process(
-                #     target=self.face_detect_recog.classifyFacesFromFrame,
-                #     args=(image, self.shortTimeMemory.model_temporary,
-                #           self.shortTimeMemory.model_permanent,
-                #           resultFaceRecog))
-                # procFaceRecog.start()
-                #
-                # # Join the processes -------------------------------------------
-                # procPeopleDetect.join()
-                # (people_bboxes, people_scores) = resultPeopleDetect.get()
-                # procFaceRecog.join()
-                # (people, imageWithBoxes) = resultFaceRecog.get()
+            # Use FaceNet to detect and recognize faces in RGB image.
+            people = self.face_detect_recog.classifyFacesFromFrame(image,
+                                    self.shortTimeMemory.model_temporary,
+                                    self.shortTimeMemory.model_permanent)
+
+            # pool.wait_completion()
+            # (people_bboxes, people_scores) = results['bodies']
+
+            # Compute people IDs.
+            facesBBoxes = [box for (box, _, _) in people]
+            people_ids = self.tracker.updateIds(facesBBoxes,
+                                                np.ones(len(facesBBoxes)))
+
+            # triggers that work in paralel
+            pool.add_task(self.triggerGenerator.facesTrigger, people)
+            pool.add_task(self.triggerGenerator.qrCodesTrigger, image)
+            pool.add_task(self.triggerGenerator.addBiggestFrame, image, people, people_ids)
+
+            # handle short time memory situations
+            speechRec = self.results['speechRecog']
+            self.results['speechRecog'] = ''
+            if 'hello' in speechRec:
+                self.triggerGenerator.addingToMemory = True
+                # aici ar trebui sa se puna un nume in self.personName, daca se stie
+                self.triggerGenerator.addMemoryTrigger()
+
+                if not self.triggerGenerator.personName and self.triggerGenerator.addingToMemory:
+                    self.speekEngine.say('What is your name?')
+                    self.speekEngine.runAndWait()
+            elif speechRec and self.triggerGenerator.addingToMemory \
+                    and self.triggerGenerator.personName == '':
+                self.triggerGenerator.personName = speechRec
+            else:
+                self.triggerGenerator.addMemoryTrigger()
 
 
+            # Show people detections on RGB image.
+            imageWithBoxes = self.face_detect_recog.drawBBoxFaces(image,
+                                                                  people,
+                                                                  people_ids)
+            # image = self.people_detector.draw_detections(imageWithBoxes,
+            #                                              people_bboxes,
+            #                                              people_scores)
+            cv2.imshow("Image", image)
+            cv2.waitKey(1)
 
-                # Send data to robot.
-                if send_data:
-                    people_info = people_info[0:2]
+            pool.wait_completion()
 
-                    toSend = [people_info, torsoFrame, robotFrame, timestamp]
-                    self.data_sender.send_data(pickle.dumps(toSend))
-
-                # Show people detections on RGB image that already has faces boxes.
-                image = self.people_detector.draw_detections(imageWithBoxes,
-                                                             people_bboxes,
-                                                             people_scores)
-                cv2.imshow("Image", image)
-                cv2.waitKey(1)
-
-                if robot_stream:
-                    self.image_provider.release_image()
-
-
-        except KeyboardInterrupt:
-            print("Script interrupted by user, shutting down...")
-            if send_data:
-                self.data_sender.stop()
-            if robot_stream:
-                self.image_provider.disconnect()
-            sys.exit(0)
-
-        except socket.error as error_message:
-            print("Socket error: " + str(
-                error_message) + "\nDisconnected... Reconnecting ...")
-            if send_data:
-                self.data_sender.stop()
-            self.run()
-
-        except Exception as e:
-            print("Thrown exception: " + str(e))
-            if send_data:
-                self.data_sender.stop()
-            if robot_stream:
-                self.image_provider.disconnect()
-            traceback.print_exc()
-            sys.exit(0)
 
 
 if __name__ == "__main__":
-    application = None
-
-    import qi
-
-    if robot_stream:
-        # Initialize robot's NAOqi framework.
-        try:
-            connection_url = "tcp://" + ip + ":" + str(port)
-            application = qi.Application(["Main", "--qi-url=" + connection_url])
-        except RuntimeError:
-            print(
-            "Can't connect to NAOqi at \"" + ip + ":" + str(port) + "\".\n"
-                                                                    "Please check your script arguments. Run with -h option for help.")
-            sys.exit(1)
 
     with tf.Graph().as_default():
         gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.6)
@@ -190,11 +124,47 @@ if __name__ == "__main__":
             load_model(modeldir)
             pnet, rnet, onet = create_mtcnn(sess, './Vision/FaceNet/d_npy')
 
-            main = Main(application, sess, pnet, rnet, onet)
-            main.run()
+            main = Main(sess, pnet, rnet, onet)
 
-    sys.path.remove(naoqi_path)
+            try:
+                main.run()
+            except KeyboardInterrupt:
+                print("Script interrupted by user, shutting down...")
+                sys.exit(0)
 
+            except Exception as e:
+                print("Thrown exception: " + str(e))
+                traceback.print_exc()
+                sys.exit(0)
+
+
+
+"""
+
+#window = pyglet.window.Window()
+keys = key.KeyStateHandler()
+#window.push_handlers(keys)
+
+# Get images for short termmemory update.
+# Pe asta nu pot sa il pun pe thread separat deoarece:
+# QObject::startTimer: Timers cannot be started from another
+# thread nu am reusit nici cu alte metode de get key sa iau
+# self.getImageForSTM(image, people, people_ids)
+def getImageForSTM(self, image, people, people_ids):
+
+    # k = cv2.waitKey(1)
+    # if k == ord('c'):
+    # Check if the spacebar is currently pressed:
+    if keys[key.SPACE]:
+        print("Am apasat space")
+        self.captureFrame = True
+    if self.captureFrame:
+        finish, name = self.triggerGenerator.addMemoryTrigger(
+            copy.deepcopy(image), people, people_ids)
+        if finish:
+            print("Done capturing faces: %s" % (name))
+            self.captureFrame = False
+"""
 
 
 '''
@@ -207,3 +177,26 @@ async_result2 = pool.apply_async(self.face_detect_recog.classifyFacesFromFrame,
 people_bboxes, people_scores = async_result1.get()
 people, imageWithBoxes = async_result2.get()
 '''
+
+# from multiprocessing import Process, Queue
+# Start the processes for tasks --------------------------------
+# Use YOLO to detect people in the RGB image.
+# resultPeopleDetect = Queue()
+# procPeopleDetect = Process(target=self.people_detector.detect,
+#                            args=(image, resultPeopleDetect))
+# procPeopleDetect.start()
+#
+# Use FaceNet to detect and recognize faces in RGB image.
+# resultFaceRecog = Queue()
+# procFaceRecog = Process(
+#     target=self.face_detect_recog.classifyFacesFromFrame,
+#     args=(image, self.shortTimeMemory.model_temporary,
+#           self.shortTimeMemory.model_permanent,
+#           resultFaceRecog))
+# procFaceRecog.start()
+#
+# # Join the processes -------------------------------------------
+# procPeopleDetect.join()
+# (people_bboxes, people_scores) = resultPeopleDetect.get()
+# procFaceRecog.join()
+# (people, imageWithBoxes) = resultFaceRecog.get()
