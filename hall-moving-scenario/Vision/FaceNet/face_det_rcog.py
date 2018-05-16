@@ -58,7 +58,7 @@ class FaceDetectRecog:
                 bb[i][3] = det[i][3]
 
                 if bb[i][0] <= 0 or bb[i][1] <= 0 or bb[i][2] >= len(frame[0]) or bb[i][3] >= len(frame):
-                    print('Face is inner of range!')
+                    # print('Face is inner of range!')
                     continue
 
                 cropped = frame[bb[i][1]:bb[i][3], bb[i][0]:bb[i][2], :]
@@ -84,9 +84,9 @@ class FaceDetectRecog:
         personName = ''
 
         if len(HumanNames) == 2:
-            face_treshold = 0.9
+            face_treshold = 0.97
         else:
-            face_treshold = 0.6    
+            face_treshold = 0.6
         
         predictions = model.predict_proba(emb_array)
         #print("Predictions: ", str(predictions))
@@ -99,14 +99,15 @@ class FaceDetectRecog:
         if best_class_probabilities[0] >= face_treshold:
             #print('Result (best_class_indices[0]): ', best_class_indices[0])
             #print("best_class_indices: ", str(best_class_indices))
-            
+
             #print("Person identified")
             for H_i in HumanNames:
                 if HumanNames[best_class_indices[0]] == H_i:
                     personName = HumanNames[best_class_indices[0]]
 
         score = best_class_probabilities[0]
-        
+
+        # print('Person: %s, score: %s.' % (personName, score))
         return personName, score
         
         
@@ -132,11 +133,15 @@ class FaceDetectRecog:
                 # if the person is a permanent user, but is not in the short term memory returns (person_name, false)
                 # if the person is neither a permanent user, nor in the short time memory returns (None, false)
                 if personName1 != '':
-                    people.append((b, personName1, True))
-                elif personName2 != '':
-                    people.append((b, personName2, False))
+                    if personName2 != '':
+                        people.append((b, personName1, True, True))
+                    else:
+                        people.append((b, personName1, True, False))
                 else:
-                    people.append((b, '', False))
+                    if personName2 != '':
+                        people.append((b, personName2, False, True))
+                    else:
+                        people.append((b, '', False, False))
 
         if show:
             cv2.imshow('Frame', frame)   
@@ -147,13 +152,13 @@ class FaceDetectRecog:
 
 
     def drawBBoxFaces(self, image, people, ids):
-        for (b, name, isInShortMemory), index in zip(people, range(len(people))):
+        for (b, name, isInShortMemory, isInPermanentMemory), index in zip(people, range(len(people))):
             personName2 = ''
             personName1 = ''
+
             if isInShortMemory:
                 personName1 = name
-                personName2 = name
-            elif name != '':
+            if isInPermanentMemory:
                 personName2 = name
 
             left, top, right, bottom = b[0], b[1], b[2], b[3]

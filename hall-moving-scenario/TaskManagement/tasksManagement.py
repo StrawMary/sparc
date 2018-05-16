@@ -4,29 +4,110 @@ import pyqrcode
 from pyzbar.pyzbar import decode
 import pyttsx3
 import cv2
+from heapq import heappop, heappush
 from collections import defaultdict
 from statistics import mode
 
 PERMANENT_USERS = set(['miruna', 'stefania', 'alex'])
+TASK_TYPES = ['say_something', 'go_to_location', 'find_me_object']
+TASK_NO = 1
+
 
 import speech_recognition as sr
 
 class Task:
-    def __init__(self, type, person_id=None, message=None, location=None,
-                 object=None):
-        # self.taskID = TASK_NO + 1
-        # TASK_NO += 1
+    def __init__(self, id, type, person_name, message, location=None,
+                 object=None, priority=10):
+        self.taskID = id
         self.type = type
-        self.person_id = person_id
+        self.priority = priority
+        self.person_name = person_name
         self.message = message
         self.location = location
         self.object = object
+        self.isDone = False
 
-    def action(self):
-        # coenzile date lui pepper
-        # se poate reapela si fac planningul de la punctul respectiv
-        pass
+    def finishMessage(self):
+        return self.message
 
+
+    def isDone(self):
+        return self.isDone
+
+    def getStr(self):
+        return "ID: %s Type: %s, Priority: %s, Person: %s, Message: %s" % \
+               (self.taskID, self.type, self.priority, self.person_name, self.message)
+
+
+class TaskManagement:
+    def __init__(self):
+        # priority queues for tasks
+        self.say_something_tasks = [] # person
+        self.go_to_tasks = [] # location
+        self.find_me_smth = [] # object with having just an aproximate location
+        self.taskNo = 0
+
+        self.currentTask = None
+        self.initTasks()
+
+
+    def initTasks(self):
+        self.addTask(Task(id=self.taskNo, type='say_something', person_name='miruna',
+                          message='Have a nice day, Miruna', priority=2))
+        self.addTask(Task(id=self.taskNo, type='say_something', person_name='stefania',
+                          message='Have a nice day, Stefania', priority=3))
+        self.addTask(Task(id=self.taskNo, type='go_to_location', person_name='alex',
+                          message='Here is the bathroom, Alex',
+                          location='bathroom', priority=3))
+
+        self.getCurrentTask()
+
+
+    def getDoableShortTask(self, peopleInView, locationInView, objectInView):
+        doableTasks = []
+
+        if peopleInView != []:
+            for (_, _, task) in self.say_something_tasks:
+                if task.person_name in peopleInView:
+                    doableTasks.append(task)
+        if locationInView != []:
+            for (_, _, task) in self.go_to_tasks:
+                if task.location in locationInView:
+                    doableTasks.append(task)
+        if objectInView != []:
+            for (_, _, task) in self.find_me_smth:
+                if task.object in objectInView:
+                    doableTasks.append(task)
+
+        for task in doableTasks:
+            print("\t\tDoable task: %s" % (task.getStr()))
+
+        return doableTasks
+
+
+    def getCurrentTask(self):
+        task = None
+        if self.say_something_tasks != []:
+            (_, _, task) = self.say_something_tasks[0]
+        elif self.go_to_tasks != []:
+            (_, _, task) = self.go_to_tasks[0]
+        elif self.find_me_smth != []:
+            (_, _, task) = self.find_me_smth[0]
+
+        self.currentTask = task
+
+        return self.currentTask
+
+
+    def addTask(self, task):
+        if task.type == 'say_something':
+            heappush(self.say_something_tasks, (task.priority, task.taskID, task))
+        elif task.type == 'go_to_location':
+            heappush(self.go_to_tasks, (task.priority, task.taskID, task))
+        elif task.type == 'find_me_object':
+            heappush(self.find_me_smth, (task.priority, task.taskID, task))
+
+        self.taskNo += 1
 
 class TriggerGenerator:
     def __init__(self, results, shortTimeMemory):
@@ -69,7 +150,7 @@ class TriggerGenerator:
             # gasesc ce mai mare fata
             biggestBoxIndex = -1
             biggestArea = -1
-            for (box, _, _), index in zip(people, range(len(people))):
+            for (box, _, _, _), index in zip(people, range(len(people))):
                 left, top, right, bottom = box[0], box[1], box[2], box[3]
                 # get the biggest bounding box with the id
                 area = (right - left) * (bottom - top)
@@ -130,11 +211,12 @@ class TriggerGenerator:
             some_faces = []
             for (indexPers, namePers), indexArray in zip(self.toAddPerson["IDname"],
                                     range(len(self.toAddPerson["IDname"]))):
-                if indexPers == index and namePers == self.personName:
+                if indexPers == index:# and namePers == self.personName:
                     some_faces.append(self.toAddPerson['faces'][indexArray])
 
             # call the script to redo the classifier
-            self.shortTimeMemory.addTemporaryPerson(some_faces, name, name in PERMANENT_USERS)
+            self.shortTimeMemory.addTemporaryPerson(some_faces, self.personName,
+                                                    self.personName in PERMANENT_USERS)
 
             print("%s added in memory." % (self.personName))
 
@@ -157,7 +239,7 @@ class TriggerGenerator:
                 except StatisticsError:
                     continue
 
-                if locat != 'none':
+                if locat != 'none' and locat != '':
                     triggeredEntities.append(locat)
 
         return triggeredEntities
@@ -165,7 +247,7 @@ class TriggerGenerator:
 
     def facesTrigger(self, people):
         # persoanele pe care le vad acum
-        currentPeople = set([personName for (_, personName, _) in people])
+        currentPeople = set([personName for (_, personName, _, _) in people])
         for personName in currentPeople:
             self.peopleFrames[personName].append(personName)
 
@@ -174,6 +256,7 @@ class TriggerGenerator:
                                                         self.noConsecFaces)
         if triggeredEntities != []:
             print('\tPeople near me: %s' % (triggeredEntities))
+            self.results['people'] = triggeredEntities
 
 
     def qrCodesTrigger(self, frame):
@@ -189,6 +272,7 @@ class TriggerGenerator:
                                                         self.noConsecQRCodes)
         if triggeredEntities != []:
             print('\tLocations near me: %s' % (triggeredEntities))
+            self.results['locations'] = triggeredEntities
 
 
     def speechTrigger(self, recognizer, audio):

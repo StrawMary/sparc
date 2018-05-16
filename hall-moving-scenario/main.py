@@ -14,7 +14,7 @@ from Vision.Tracking.tracker import Tracker
 from Utils.testThreadPool import ThreadPool
 
 # Trigger Generator
-from TaskManagement.tasksManagement import TriggerGenerator
+from TaskManagement.tasksManagement import TriggerGenerator, TaskManagement
 
 # Short time memory
 from ShortTermMemory.short_time_memory import ShortTermMemory
@@ -22,8 +22,7 @@ from ShortTermMemory.short_time_memory import ShortTermMemory
 class Main(object):
     def __init__(self, sess, pnet, rnet, onet):
 
-        self.results = {'bodies': (), 'faces': [], 'peopleMet': [],
-                        'locations': [], 'speechRecog': ''}
+        self.results = {'people': [], 'locations': [], 'speechRecog': '', 'objects':[]}
 
         # Vision
         # self.people_detector = PeopleDetector()
@@ -33,9 +32,11 @@ class Main(object):
         # Short time memory
         self.shortTimeMemory = ShortTermMemory(self.face_detect_recog)
 
-        # Triggers objects
+        # Triggers objects and manage tasks
         self.triggerGenerator = TriggerGenerator(self.results,
                                                  self.shortTimeMemory)
+        self.tasksManagement = TaskManagement()
+
         self.speekEngine = pyttsx3.init()
 
         super(Main, self).__init__()
@@ -73,7 +74,7 @@ class Main(object):
             # (people_bboxes, people_scores) = results['bodies']
 
             # Compute people IDs.
-            facesBBoxes = [box for (box, _, _) in people]
+            facesBBoxes = [box for (box, _, _, _) in people]
             people_ids = self.tracker.updateIds(facesBBoxes,
                                                 np.ones(len(facesBBoxes)))
 
@@ -90,7 +91,7 @@ class Main(object):
                 # aici ar trebui sa se puna un nume in self.personName, daca se stie
                 self.triggerGenerator.addMemoryTrigger()
 
-                if not self.triggerGenerator.personName and self.triggerGenerator.addingToMemory:
+                if self.triggerGenerator.personName == '' and self.triggerGenerator.addingToMemory:
                     self.speekEngine.say('What is your name?')
                     self.speekEngine.runAndWait()
             elif speechRec and self.triggerGenerator.addingToMemory \
@@ -111,6 +112,10 @@ class Main(object):
             cv2.waitKey(1)
 
             pool.wait_completion()
+            self.tasksManagement.getDoableShortTask(
+                peopleInView=self.results['people'],
+                locationInView=self.results['locations'],
+                objectInView=self.results['objects'])
 
 
 

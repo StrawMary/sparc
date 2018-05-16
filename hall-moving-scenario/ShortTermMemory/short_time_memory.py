@@ -150,7 +150,7 @@ class ShortTermMemory:
         for (face, index) in zip(some_faces, range(len(some_faces))):
             cv2.imwrite("%s/%s/person%s.jpg" % (newPersonFacesFolder, person_name, index), face)
 
-        p1 = subprocess.Popen("./ShortTermMemory/facenet_usage.sh %s %s %s %s" %
+        p1 = subprocess.Popen("./ShortTermMemory/facenet_usage.sh %s %s %s %s > trash.txt" %
                               (newPersonFacesFolder, newPersonAlignedFacesFolder,
                                temporaryAlignedPeopleFolder, temporaryPeopleClassifier),
                               shell=True)
