@@ -18,7 +18,7 @@ import speech_recognition as sr
 
 class Task:
     def __init__(self, id, type, person_name, message, location=None,
-                 object=None, priority=10, ttl = sys.maxint):
+                 object=None, priority=10, ttl = sys.maxint, coordinates = []):
         self.taskID = id
         self.type = type
         self.priority = priority
@@ -27,6 +27,8 @@ class Task:
         self.location = location
         self.object = object
         self.isDone = False
+        self.coordinates = coordinates
+
         self.ttl = ttl
 
     def finishMessage(self):
@@ -84,7 +86,7 @@ class TaskManagement:
             if task.ttl > 0:
                 doableTasks.append(task)
             else:
-                #Ar trebui sa scoatem task-urile
+                # Ar trebui sa scoatem task-urile
                 pass
             task.ttl -= 1
 

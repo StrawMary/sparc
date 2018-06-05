@@ -83,7 +83,8 @@ class Main(object):
         else:
             self.camera = cv2.VideoCapture(1)  # Get images from camera
 
-        self.encountered_people = {}
+        self.encountered_people = {} #
+
 
     def run(self):
         print("Waiting for connection...")
@@ -191,15 +192,16 @@ class Main(object):
                 #cv2.imshow("Image", image)
                 #cv2.waitKey(1)
 
-                # Send positions.
-                #tasks = self.tasksManagement.getDoableShortTask(
-                #    peopleInView=self.results['people'],
-                #    locationInView=self.results['locations'],
-                #    objectInView=self.results['objects'])
-
                 for position in people_3d_positions:
                     self.tasksManagement.addTask(Task())
-                    print(position)
+                    # print(position)
+
+
+                # Send positions.
+                tasks = self.tasksManagement.getDoableShortTask(
+                    peopleInView=self.results['people'],
+                    locationInView=self.results['locations'],
+                    objectInView=self.results['objects'])
 
                 if send_data:
                     self.data_sender.send_data(pickle.dumps(people_3d_positions))
