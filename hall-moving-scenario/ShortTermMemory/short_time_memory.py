@@ -94,14 +94,14 @@ class ShortTermMemory:
         if temporary:
             classifier_temporary_filename_exp = os.path.expanduser(temporaryPeopleClassifier)
             with open(classifier_temporary_filename_exp, 'rb') as infile:
-                (self.model_temporary, class_names) = pickle.load(infile, encoding='latin1')
+                (self.model_temporary, class_names) = pickle.load(infile)
                 print('load classifier file-> %s' % classifier_temporary_filename_exp)
         
         # Clasificator permanent
         if permanent:
             classifier_permanent_filename_exp = os.path.expanduser(permanentPeopleClassifier)
             with open(classifier_permanent_filename_exp, 'rb') as infile:
-                (self.model_permanent, class_names) = pickle.load(infile, encoding='latin1')
+                (self.model_permanent, class_names) = pickle.load(infile)
                 print('load classifier file-> %s' % classifier_permanent_filename_exp)
  
     def resetMemory(self):

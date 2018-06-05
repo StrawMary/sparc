@@ -1,4 +1,4 @@
-from queue import Queue
+from Queue import *
 from threading import Thread
 
 

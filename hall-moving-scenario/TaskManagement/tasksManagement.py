@@ -2,14 +2,15 @@
 from statistics import mode, StatisticsError
 import pyqrcode
 from pyzbar.pyzbar import decode
-import pyttsx3
+import pyttsx
 import cv2
 from heapq import heappop, heappush
 from collections import defaultdict
 from statistics import mode
+import sys
 
 PERMANENT_USERS = set(['miruna', 'stefania', 'alex'])
-TASK_TYPES = ['say_something', 'go_to_location', 'find_me_object']
+TASK_TYPES = ['say_something', 'go_to_location', 'find_me_object', 'show_on_map']
 TASK_NO = 1
 
 
@@ -17,7 +18,7 @@ import speech_recognition as sr
 
 class Task:
     def __init__(self, id, type, person_name, message, location=None,
-                 object=None, priority=10):
+                 object=None, priority=10, ttl = sys.maxint):
         self.taskID = id
         self.type = type
         self.priority = priority
@@ -26,10 +27,10 @@ class Task:
         self.location = location
         self.object = object
         self.isDone = False
+        self.ttl = ttl
 
     def finishMessage(self):
         return self.message
-
 
     def isDone(self):
         return self.isDone
@@ -44,9 +45,10 @@ class TaskManagement:
         # priority queues for tasks
         self.say_something_tasks = [] # person
         self.go_to_tasks = [] # location
-        self.find_me_smth = [] # object with having just an aproximate location
-        self.taskNo = 0
+        self.find_me_smth_tasks = [] # object with having just an aproximate location
+        self.show_on_map_tasks = []
 
+        self.taskNo = 0
         self.currentTask = None
         self.initTasks()
 
@@ -75,9 +77,17 @@ class TaskManagement:
                 if task.location in locationInView:
                     doableTasks.append(task)
         if objectInView != []:
-            for (_, _, task) in self.find_me_smth:
+            for (_, _, task) in self.find_me_smth_tasks:
                 if task.object in objectInView:
                     doableTasks.append(task)
+        for(_, _, task) in self.show_on_map_tasks:
+            if task.ttl > 0:
+                doableTasks.append(task)
+            else:
+                #Ar trebui sa scoatem task-urile
+                pass
+            task.ttl -= 1
+
 
         for task in doableTasks:
             print("\t\tDoable task: %s" % (task.getStr()))
@@ -91,8 +101,8 @@ class TaskManagement:
             (_, _, task) = self.say_something_tasks[0]
         elif self.go_to_tasks != []:
             (_, _, task) = self.go_to_tasks[0]
-        elif self.find_me_smth != []:
-            (_, _, task) = self.find_me_smth[0]
+        elif self.find_me_smth_tasks != []:
+            (_, _, task) = self.find_me_smth_tasks[0]
 
         self.currentTask = task
 
@@ -105,7 +115,9 @@ class TaskManagement:
         elif task.type == 'go_to_location':
             heappush(self.go_to_tasks, (task.priority, task.taskID, task))
         elif task.type == 'find_me_object':
-            heappush(self.find_me_smth, (task.priority, task.taskID, task))
+            heappush(self.find_me_smth_tasks, (task.priority, task.taskID, task))
+        elif task.type == 'show_on_map':
+            heappush(self.show_on_map_tasks, (task.priority, task.taskID, task))
 
         self.taskNo += 1
 
@@ -135,7 +147,7 @@ class TriggerGenerator:
 
         self.results = results
 
-        self.speekEngine = pyttsx3.init()
+        self.speekEngine = pyttsx.init()
 
         r = sr.Recognizer()
         m = sr.Microphone()
