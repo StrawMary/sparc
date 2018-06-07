@@ -108,6 +108,26 @@ class DataProcessor():
 
         return people
 
+    def compute_distance(self, depth_image, bbox):
+
+        # Adjust position from RGB image to depth image.
+        left, top, right, bottom = bbox
+        bbox = [min(639, left + 5), max(0, top - 10), min(639, right + 5),
+                max(0, bottom - 10)]
+
+        # Get segmented pixels in depth image if it is the case.
+        detection = depth_image[top:bottom, left:right]
+        cropped = depth_image[top:bottom, left:right]
+
+        # Compute distance based on depth image.
+        distance = np.median(cropped)
+        distance = distance / 255 * 3.28 + 0.4
+        if distance == 0.4:
+            if (right - left) * (
+                bottom - top) < bbox_thresh:
+                distance = 5.0
+
+        return distance, bbox
 
     def compute_people_distances(self, depth_image, mask_image, people):
         distances = []
@@ -151,6 +171,18 @@ class DataProcessor():
         cY = top + (bottom - top) / 2
         return [cX, cY]  
 
+    def compute_qr_code_angles(self, qr_code_bbox):
+
+        bbox = qr_code_bbox
+        # if 'face_bbox' in person:
+        #    bbox = person['face_bbox']
+        left, top, right, bottom = bbox
+
+        x, y = self.get_center(left, top, right, bottom)
+
+        angleX = ((cX - x) / float(cX)) * x_maximum_view_angle
+        angleY = ((top - cY) / float(cY)) * y_maximum_view_angle
+        return (math.radians(angleX), math.radians(angleY))
 
     def compute_people_angles(self, people):
         angles = []
@@ -199,6 +231,18 @@ class DataProcessor():
 
         return people_info
 
+    def get_qr_code_3d_positions(self, qr_code_distance, qr_code_angles, head_yaw, head_pitch, camera_height):
+        positions = []
+        # Angle in radians on y direction in the robot's 3D coordinated (x on camera).
+        angleY = qr_code_angles[0] + head_yaw
+        angleZ = qr_code_angles[1] + head_pitch
+
+        x = qr_code_distance * math.cos(angleY)
+        y = qr_code_distance * math.sin(angleY)
+        z = qr_code_distance * math.sin(angleZ)
+        position = (x, y, -z + camera_height)
+
+        return position
 
     def get_people_3d_positions(self, people_info, head_yaw, head_pitch, camera_height):
         positions = []

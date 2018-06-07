@@ -38,9 +38,14 @@ class Task:
         return self.isDone
 
     def getStr(self):
-        return "ID: %s Type: %s, Priority: %s, Person: %s, Message: %s" % \
-               (self.taskID, self.type, self.priority, self.person_name, self.message)
+        return "ID: %s Type: %s, Priority: %s, Person: %s, Message: %s, Location: %s" % \
+               (self.taskID, self.type, self.priority, self.person_name, self.message, self.location)
 
+    def __str__(self):
+        return self.getStr()
+
+    def __repr__(self):
+        return self.__str__()
 
 class TaskManagement:
     def __init__(self):
@@ -70,18 +75,20 @@ class TaskManagement:
     def getDoableShortTask(self, peopleInView, locationInView, objectInView):
         doableTasks = []
 
-        if peopleInView != []:
-            for (_, _, task) in self.say_something_tasks:
-                if task.person_name in peopleInView:
-                    doableTasks.append(task)
-        if locationInView != []:
-            for (_, _, task) in self.go_to_tasks:
-                if task.location in locationInView:
-                    doableTasks.append(task)
-        if objectInView != []:
-            for (_, _, task) in self.find_me_smth_tasks:
-                if task.object in objectInView:
-                    doableTasks.append(task)
+        # if peopleInView != []:
+        #     for (_, _, task) in self.say_something_tasks:
+        #         if task.person_name in peopleInView:
+        #             doableTasks.append(task)
+        # if locationInView != []:
+        #     for (_, _, task) in self.go_to_tasks:
+        #         if task.location in locationInView:
+        #             doableTasks.append(task)
+        # if objectInView != []:
+        #     for (_, _, task) in self.find_me_smth_tasks:
+        #         if task.object in objectInView:
+        #             doableTasks.append(task)
+
+        
         for(_, _, task) in self.show_on_map_tasks:
             if task.ttl > 0:
                 doableTasks.append(task)
@@ -110,6 +117,8 @@ class TaskManagement:
 
         return self.currentTask
 
+    def modifyTask(self, taskID):
+        pass
 
     def addTask(self, task):
         if task.type == 'say_something':
@@ -135,6 +144,7 @@ class TriggerGenerator:
         self.peopleFrames = defaultdict(list)
         # location : current_consecutive_frames
         self.qrCodeFrames = {'bathroom': [], 'lab_308': [], 'lab_303': [], 'lifts': []}
+        self.current_qr_code = ()
 
         # Dicionary with the unknown people
         # the IDs, the faces and the names of the last noConsecFacesToAdd the
@@ -276,18 +286,24 @@ class TriggerGenerator:
     def qrCodesTrigger(self, frame):
         currentLocations = set()
         decodedMessage = decode(frame)
+        self.current_qr_code = ()
         if decodedMessage != []:
+            rectangle = [decodedMessage[0].rect.left, decodedMessage[0].rect.top,
+                         decodedMessage[0].rect.left + decodedMessage[0].rect.width,
+                         decodedMessage[0].rect.top + decodedMessage[0].rect.height]
             location = str(decodedMessage[0].data.decode("utf-8"))
+            self.current_qr_code = (location, rectangle)
+
             currentLocations.add(location)
             self.qrCodeFrames[location].append(location)
 
         triggeredEntities = self.determinePresentEntity(self.qrCodeFrames,
                                                         currentLocations,
                                                         self.noConsecQRCodes)
+
         if triggeredEntities != []:
             print('\tLocations near me: %s' % (triggeredEntities))
             self.results['locations'] = triggeredEntities
-
 
     def speechTrigger(self, recognizer, audio):
         try:

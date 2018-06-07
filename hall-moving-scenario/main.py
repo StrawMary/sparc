@@ -23,11 +23,13 @@ from Vision.Tracking.tracker import Tracker
 from Utils.testThreadPool import ThreadPool
 from Vision.ImageProvider.image_provider import ImageProvider
 from PepperInteraction.reminders import RemindersChecker
-from Vision.Segmentation.human_segmentation import HumanSegmentation
+from Vision.Segmentation.human_segmentation import Segmentation
 from TCPDataSender.data_sender import TCPDataSender
 from Vision.Yolo2.people_detector import PeopleDetector
 from Utils.data_processor import DataProcessor
 from Utils.distances_smoothening import KalmanSmoother
+from collections import defaultdict
+
 
 # Trigger Generator
 from TaskManagement.tasksManagement import TriggerGenerator, TaskManagement, Task
@@ -36,7 +38,7 @@ from TaskManagement.tasksManagement import TriggerGenerator, TaskManagement, Tas
 from ShortTermMemory.short_time_memory import ShortTermMemory
 
 robot_stream = True
-send_data = False
+send_data = True
 ip_fast = "192.168.0.115"
 ip_local = "172.19.11.65"
 
@@ -49,9 +51,10 @@ recognition_threshold = 0.5
 class Main(object):
     def __init__(self, app, sess, pnet, rnet, onet):
         self.people_detector = PeopleDetector()
+
         self.data_sender = TCPDataSender()
         self.data_processor = DataProcessor()
-        self.human_segmentation = HumanSegmentation()
+        self.segmentation = Segmentation()
         self.image_provider = ImageProvider(ip, port, frameRate)
         self.distances_smoothening = None
 
@@ -83,7 +86,8 @@ class Main(object):
         else:
             self.camera = cv2.VideoCapture(1)  # Get images from camera
 
-        self.encountered_people = {} #
+        self.encountered_people = {}
+        self.encountered_locations = {}
 
 
     def run(self):
@@ -108,6 +112,20 @@ class Main(object):
                 # # Use YOLO to detect people in frames.
                 # pool.add_task(self.people_detector.detect, image, results)
                 people_bboxes, people_scores = self.people_detector.detect(image)
+
+                qr_code_3d_position = None
+                current_qr_code = self.triggerGenerator.current_qr_code
+                if len(current_qr_code) > 0:
+                    qr_code = current_qr_code[1]
+                    cv2.rectangle(image, (qr_code[0], qr_code[1]), (qr_code[2], qr_code[3]), (0, 0, 255), 2)
+                    qr_code_angles = self.data_processor.compute_qr_code_angles(
+                        current_qr_code[1])
+                    qr_code_distance, qr_code_depth_bbox = self.data_processor.compute_distance(
+                        depth_image, current_qr_code[1])
+                    qr_code_3d_position = self.data_processor.get_qr_code_3d_positions(
+                        qr_code_distance, qr_code_angles, head_yaw, head_pitch,
+                        camera_height)
+
                 self.data_processor.square_detections(people_bboxes)
 
                 # Compute people IDs.
@@ -117,18 +135,17 @@ class Main(object):
                 faces = self.face_detect_recog.classifyFacesFromFrame(image,
                                         self.shortTimeMemory.model_temporary,
                                         self.shortTimeMemory.model_permanent)
-                print(faces)
-
                 # Associate detected faces with detected people.
                 people = self.data_processor.associate_faces_to_people(people_bboxes, faces)
 
                 # Segment humans in detections.
-                segmented_image, mask = self.human_segmentation.get_segmented_image(image, people)
+                segmented_image, mask = self.segmentation.segment_people(image, people)
 
                 # Compute more information about detected people.
                 people_angles = self.data_processor.compute_people_angles(people)
+
                 people_distances, depth_bboxes = self.data_processor.compute_people_distances(depth_image, mask, people)
-                
+
 
                 if len(people_distances) > 0:
                     if self.distances_smoothening == None:
@@ -148,7 +165,6 @@ class Main(object):
 
                 # Get people 3D position relative to the robot.
                 people_3d_positions = self.data_processor.get_people_3d_positions(people_info, head_yaw, head_pitch, camera_height)
-
 
                 # pool.wait_completion()
                 # (people_bboxes, people_scores) = results['bodies']
@@ -192,10 +208,28 @@ class Main(object):
                 #cv2.imshow("Image", image)
                 #cv2.waitKey(1)
 
-                for position in people_3d_positions:
-                    self.tasksManagement.addTask(Task())
-                    # print(position)
+                for info in people_3d_positions: # info = [id, pozitie, [nume]]
+                    if len(info) == 3:
+                        if info[2] not in self.encountered_people:
+                            personShow = Task(id=self.tasksManagement.taskNo, type='show_on_map',
+                                              person_name=info[2], message='', coordinates=info[1])
+                            self.tasksManagement.addTask(personShow)
+                            self.encountered_people[info[2]] = personShow
+                        else:
+                            self.encountered_people[info[2]].coordinates = info[1]
 
+                if qr_code_3d_position:  # info = [id, pozitie, [nume]]
+                    if current_qr_code[0] not in self.encountered_locations:
+                        qrCodeShow = Task(
+                            id=self.tasksManagement.taskNo,
+                            type='show_on_map',
+                            person_name='', message='',
+                            location=current_qr_code[0],
+                            coordinates=qr_code_3d_position)
+                        self.tasksManagement.addTask(qrCodeShow)
+                        self.encountered_locations[current_qr_code[0]] = qrCodeShow
+                    else:
+                        self.encountered_locations[current_qr_code[0]].coordinates = qr_code_3d_position
 
                 # Send positions.
                 tasks = self.tasksManagement.getDoableShortTask(
@@ -203,8 +237,10 @@ class Main(object):
                     locationInView=self.results['locations'],
                     objectInView=self.results['objects'])
 
+                print(tasks)
+
                 if send_data:
-                    self.data_sender.send_data(pickle.dumps(people_3d_positions))
+                    self.data_sender.send_data(pickle.dumps(tasks))
                     #print(people_3d_positions)
                     #self.data_sender.send_data(pickle.dumps([[0, [1 + random.random() / 10, 1 + random.random() / 10, 1 + random.random() / 10]]]))
 

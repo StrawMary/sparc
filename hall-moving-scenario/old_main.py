@@ -95,7 +95,7 @@ class Main(object):
 
 				start_time = time.time()
 				# Segment humans in detections.
-				segmented_image, mask = self.human_segmentation.get_segmented_image(image, people)
+				segmented_image, mask = self.human_segmentation.segment_people(image, people)
 				if len(people_bboxes):
 					print("--- %s segmentation seconds ---" % (time.time() - start_time))
 
