@@ -11,7 +11,7 @@ import sys
 import tf
 import numpy as np
 
-class PepperNavigation:
+class PepperLocalization:
 
     def __init__(self):
         rospy.Subscriber("/slam_out_pose", PoseStamped, self.update_pose)
@@ -20,11 +20,7 @@ class PepperNavigation:
         self.latest_pose = None
         self.latest_map = None
         self.latest_map_pose = None
-        self.listener =  tf.TransformListener()
-        self.move_publisher = rospy.Publisher('/move_base_simple/goal', PoseStamped, queue_size=10)
-
-    def move_to_goal(self, goal):
-        self.move_publisher.publish(goal)
+        self.listener = tf.TransformListener()
 
     def get_pose(self):
         return self.latest_pose
@@ -34,7 +30,6 @@ class PepperNavigation:
 
     def update_map(self, data):
         self.map = data
-	
         self.map_width = data.info.width
         self.map_height = data.info.height
         self.resolution = data.info.resolution
@@ -45,15 +40,3 @@ class PepperNavigation:
             self.latest_map_pose = (x, y)
         data.data = [50 if x==-1 else x for x in data.data]
         self.latest_map = np.array([255 - i*2.55 for i in data.data]).reshape(data.info.width, data.info.height)
-'''
-if __name__ == '__main__':
-    navigation = PepperNavigation()
-    i = 1
-    while( i < 4):
-        time.sleep(1)
-        i = i + 1
-        if(navigation.latest_map != None and navigation.latest_map_pose != None):
-            img = navigation.draw_position()
-            cv2.imwrite("Map.png", img)
-            cv2.waitKey(1)
-'''

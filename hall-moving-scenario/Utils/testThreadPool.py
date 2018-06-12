@@ -16,7 +16,8 @@ class Worker(Thread):
             try:
                 func(*args, **kargs)
             except Exception as e:
-                print(e)
+                print("aci la threadpool")
+                raise e
             finally:
                 self.tasks.task_done()
 

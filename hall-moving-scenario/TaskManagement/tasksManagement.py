@@ -219,6 +219,7 @@ class TriggerGenerator:
                     return
         except Exception as e:
             (index, name) = (-1, '')
+            raise e
 
 
         if self.personName and index != -1:

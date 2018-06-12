@@ -1,0 +1,81 @@
+acc_lim_th: 5.8 # as roughly estimated on Ranger2
+acc_lim_theta: 5.8 # as roughly estimated on Ranger2 (DWA planner)
+acc_lim_x: 1.0 # as roughly estimated on Ranger2
+acc_lim_y: 0.0
+acc_limit_trans: 1.0 # for DWA
+
+# values estimated for Ranger2
+max_vel_theta: 0.75
+min_vel_theta: 0.06
+max_rot_vel: 0.75 # for DWA
+min_rot_vel: 0.06 # for DWA
+
+min_in_place_vel_theta: 0.2
+max_vel_x: 0.3
+min_vel_x: 0.05
+max_vel_y: 0.3
+min_vel_y: 0.05
+max_trans_vel: 0.3 # for DWA
+min_trans_vel: 0.05 # for DWA
+
+
+
+
+xy_goal_tolerance: 0.5
+yaw_goal_tolerance: 0.3 # ~3deg
+# if the robot ever reaches the goal xy location it will simply rotate in place, even if it ends up outside the goal tolerance while it is doing so. (false)
+latch_xy_goal_tolerance: true
+
+penalize_negative_x: false # for DWA planner only
+
+#How far the robot must travel in meters before oscillation flags are reset (0.05)
+oscillation_reset_dist: 0.1
+#The amount of time to forward-simulate trajectories in seconds
+sim_time: 6.0
+sim_granularity: 0.025
+holonomic_robot: true
+
+meter_scoring: true
+
+
+# ==================== OLD CONFIG ===================== #
+# controller_frequency: 1.0
+# recovery_behavior_enabled: true
+# clearing_rotation_allowed: true
+
+# TrajectoryPlannerROS:
+#   max_vel_x: 0.2
+#   min_vel_x: 0.05
+#   max_vel_theta: 1.5
+#   min_vel_theta: 0.06
+#   min_in_place_vel_theta: 0.5
+#   max_rotational_vel: 1.5
+#   min_in_place_rotational_vel: 0.5
+#   escape_vel: -0.10
+#   acc_lim_x: 0.75
+#   acc_lim_y: 0.75
+#   acc_lim_theta: 1.0
+
+#   holonomic_robot: true
+  # yaw_goal_tolerance: 0.1 # about 6 degrees
+  # xy_goal_tolerance: 0.1 # 10 cm
+  # gdist_scale: 0.8
+  # pdist_scale: 0.6
+
+  # heading_lookahead: 0.3
+  # heading_scoring: false
+  # heading_scoring_timestep: 0.1
+  # meter_scoring: false
+  # oscillation_reset_dist: 0.05
+  # occdist_scale: 0.05
+  # publish_cost_grid_pc: false
+
+  # sim_time: 1.7
+  # sim_granularity: 0.025
+  # angular_sim_granularity: 0.025
+  # vx_samples: 8
+  # vtheta_samples: 20
+  # dwa: true
+  # simple_attractor: false
+
+

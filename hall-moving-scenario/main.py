@@ -13,6 +13,7 @@ import traceback
 import tensorflow as tf
 import numpy as np
 import pyttsx
+import subprocess
 
 # Vision
 # from Vision.Yolo2.people_detector import PeopleDetector
@@ -28,6 +29,8 @@ from TCPDataSender.data_sender import TCPDataSender
 from Vision.Yolo2.people_detector import PeopleDetector
 from Utils.data_processor import DataProcessor
 from Utils.distances_smoothening import KalmanSmoother
+from Navigation.Navigation import Navigation
+from Navigation.PepperPoseManager import PepperPoseManager
 from collections import defaultdict
 
 
@@ -38,7 +41,7 @@ from TaskManagement.tasksManagement import TriggerGenerator, TaskManagement, Tas
 from ShortTermMemory.short_time_memory import ShortTermMemory
 
 robot_stream = True
-send_data = True
+send_data = False
 ip_fast = "192.168.0.115"
 ip_local = "172.19.11.65"
 
@@ -49,248 +52,272 @@ frameRate = 30
 recognition_threshold = 0.5
 
 class Main(object):
-    def __init__(self, app, sess, pnet, rnet, onet):
-        self.people_detector = PeopleDetector()
+	def __init__(self, app, sess, pnet, rnet, onet):
+		self.people_detector = PeopleDetector()
 
-        self.data_sender = TCPDataSender()
-        self.data_processor = DataProcessor()
-        self.segmentation = Segmentation()
-        self.image_provider = ImageProvider(ip, port, frameRate)
-        self.distances_smoothening = None
+		self.data_sender = TCPDataSender()
+		self.data_processor = DataProcessor()
+		self.segmentation = Segmentation()
+		self.image_provider = ImageProvider(ip, port, frameRate)
+		self.navigation = Navigation()
+		self.pose_manager = PepperPoseManager()
+		self.distances_smoothening = None
 
-        self.positions_no = 0
-        self.trajectories = {}
+		self.positions_no = 0
+		self.trajectories = {}
 
-        self.results = {'people': [], 'locations': [], 'speechRecog': '', 'objects':[]}
+		self.results = {'people': [], 'locations': [], 'speechRecog': '', 'objects':[]}
 
-        # Vision
-        # self.people_detector = PeopleDetector()
-        self.face_detect_recog = FaceDetectRecog(sess, pnet, rnet, onet)
-        self.tracker = Tracker()
+		# Vision
+		# self.people_detector = PeopleDetector()
+		self.face_detect_recog = FaceDetectRecog(sess, pnet, rnet, onet)
+		self.tracker = Tracker()
 
-        # Short time memory
-        self.shortTimeMemory = ShortTermMemory(self.face_detect_recog)
+		# Short time memory
+		self.shortTimeMemory = ShortTermMemory(self.face_detect_recog)
 
-        # Triggers objects and manage tasks
-        self.triggerGenerator = TriggerGenerator(self.results,
-                                                 self.shortTimeMemory)
-        self.tasksManagement = TaskManagement()
+		# Triggers objects and manage tasks
+		self.triggerGenerator = TriggerGenerator(self.results,
+												 self.shortTimeMemory)
+		self.tasksManagement = TaskManagement()
 
-        self.speakEngine = pyttsx.init()
+		self.speakEngine = pyttsx.init()
 
-        super(Main, self).__init__()
+		super(Main, self).__init__()
 
-        if robot_stream:
-            app.start()
-            self.image_provider.connect()
-        else:
-            self.camera = cv2.VideoCapture(1)  # Get images from camera
+		if robot_stream:
+			app.start()
+			self.image_provider.connect()
+		else:
+			self.camera = cv2.VideoCapture(1)  # Get images from camera
 
-        self.encountered_people = {}
-        self.encountered_locations = {}
-
-
-    def run(self):
-        print("Waiting for connection...")
-        if send_data:
-            self.data_sender.start()
-        print("Client connected.")
-
-        pool = ThreadPool(4)
-
-        try:
-            while True:
-                if robot_stream:
-                    image, depth_image, camera_height, head_yaw, head_pitch = self.image_provider.get_cv_image()
-                else:
-                    _, image = self.camera.read()
-                    depth_image = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
-                    camera_height = 1.2
-                    head_yaw = 0
-                    head_pitch = 0
-
-                # # Use YOLO to detect people in frames.
-                # pool.add_task(self.people_detector.detect, image, results)
-                people_bboxes, people_scores = self.people_detector.detect(image)
-
-                qr_code_3d_position = None
-                current_qr_code = self.triggerGenerator.current_qr_code
-                if len(current_qr_code) > 0:
-                    qr_code = current_qr_code[1]
-                    cv2.rectangle(image, (qr_code[0], qr_code[1]), (qr_code[2], qr_code[3]), (0, 0, 255), 2)
-                    qr_code_angles = self.data_processor.compute_qr_code_angles(
-                        current_qr_code[1])
-                    qr_code_distance, qr_code_depth_bbox = self.data_processor.compute_distance(
-                        depth_image, current_qr_code[1])
-                    qr_code_3d_position = self.data_processor.get_qr_code_3d_positions(
-                        qr_code_distance, qr_code_angles, head_yaw, head_pitch,
-                        camera_height)
-
-                self.data_processor.square_detections(people_bboxes)
-
-                # Compute people IDs.
-                people_ids = self.tracker.updateIds(people_bboxes, people_scores)
-
-                # Use FaceNet to detect and recognize faces in RGB image.
-                faces = self.face_detect_recog.classifyFacesFromFrame(image,
-                                        self.shortTimeMemory.model_temporary,
-                                        self.shortTimeMemory.model_permanent)
-                # Associate detected faces with detected people.
-                people = self.data_processor.associate_faces_to_people(people_bboxes, faces)
-
-                # Segment humans in detections.
-                segmented_image, mask = self.segmentation.segment_people(image, people)
-
-                # Compute more information about detected people.
-                people_angles = self.data_processor.compute_people_angles(people)
-
-                people_distances, depth_bboxes = self.data_processor.compute_people_distances(depth_image, mask, people)
+		self.encountered_people = {}
+		self.encountered_locations = {}
 
 
-                if len(people_distances) > 0:
-                    if self.distances_smoothening == None:
-                        self.distances_smoothening = KalmanSmoother(people_distances[0])
-                    else:
-                        distance = self.distances_smoothening.get_distance_estimation(people_distances[0])
-                        if distance:
-                            people_distances[0] = distance
-                        else:
-                            people = []
-                            people_ids = []
-                            people_angles = []
-                            people_distances = []
-
-                # Put all the informatin together.
-                people_info = self.data_processor.get_people_info(people, people_ids, people_angles, people_distances)
-
-                # Get people 3D position relative to the robot.
-                people_3d_positions = self.data_processor.get_people_3d_positions(people_info, head_yaw, head_pitch, camera_height)
-
-                # pool.wait_completion()
-                # (people_bboxes, people_scores) = results['bodies']
-
-                # Compute people IDs.
-                facesBBoxes = [box for (box, _, _, _) in faces]
-                faces_ids = self.tracker.updateIds(facesBBoxes,
-                                                    np.ones(len(facesBBoxes)))
-
-                # triggers that work in paralel
-                pool.add_task(self.triggerGenerator.facesTrigger, faces)
-                pool.add_task(self.triggerGenerator.qrCodesTrigger, image)
-                pool.add_task(self.triggerGenerator.addBiggestFrame, image, faces, faces_ids)
-
-                # handle short time memory situations
-                speechRec = self.results['speechRecog']
-                self.results['speechRecog'] = ''
-                if 'hello' in speechRec:
-                    self.triggerGenerator.addingToMemory = True
-                    # aici ar trebui sa se puna un nume in self.personName, daca se stie
-                    self.triggerGenerator.addMemoryTrigger()
-
-                    if self.triggerGenerator.personName == '' and self.triggerGenerator.addingToMemory:
-                        self.speakEngine.say('What is your name?')
-                        self.speakEngine.runAndWait()
-                elif speechRec and self.triggerGenerator.addingToMemory \
-                        and self.triggerGenerator.personName == '':
-                    self.triggerGenerator.personName = speechRec
-                else:
-                    self.triggerGenerator.addMemoryTrigger()
+	def run(self):
+		print("Waiting for connection...")
+		if send_data:
+			self.data_sender.start()
 
 
-                # Show people detections on RGB image.
-                imageWithBoxes = self.face_detect_recog.drawBBoxFaces(image,
-                                                                      faces,
-                                                                      faces_ids)
-                # image = self.people_detector.draw_detections(imageWithBoxes,
-                #                                              people_bboxes,
-                #                                              people_scores)
-                
-                #cv2.imshow("Image", image)
-                #cv2.waitKey(1)
+		print("Client connected.")
 
-                for info in people_3d_positions: # info = [id, pozitie, [nume]]
-                    if len(info) == 3:
-                        if info[2] not in self.encountered_people:
-                            personShow = Task(id=self.tasksManagement.taskNo, type='show_on_map',
-                                              person_name=info[2], message='', coordinates=info[1])
-                            self.tasksManagement.addTask(personShow)
-                            self.encountered_people[info[2]] = personShow
-                        else:
-                            self.encountered_people[info[2]].coordinates = info[1]
+		pool = ThreadPool(4)
+		self.is_running = True
+		try:
+			while self.is_running:
+				if robot_stream:
+					image, depth_image, camera_height, head_yaw, head_pitch = self.image_provider.get_cv_image()
+					self.image_provider.release_image()
+				else:
+					_, image = self.camera.read()
+					depth_image = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
+					camera_height = 1.2
+					head_yaw = 0
+					head_pitch = 0
 
-                if qr_code_3d_position:  # info = [id, pozitie, [nume]]
-                    if current_qr_code[0] not in self.encountered_locations:
-                        qrCodeShow = Task(
-                            id=self.tasksManagement.taskNo,
-                            type='show_on_map',
-                            person_name='', message='',
-                            location=current_qr_code[0],
-                            coordinates=qr_code_3d_position)
-                        self.tasksManagement.addTask(qrCodeShow)
-                        self.encountered_locations[current_qr_code[0]] = qrCodeShow
-                    else:
-                        self.encountered_locations[current_qr_code[0]].coordinates = qr_code_3d_position
+				# # Use YOLO to detect people in frames.
+				# pool.add_task(self.people_detector.detect, image, results)
+				people_bboxes, people_scores = self.people_detector.detect(image)
 
-                # Send positions.
-                tasks = self.tasksManagement.getDoableShortTask(
-                    peopleInView=self.results['people'],
-                    locationInView=self.results['locations'],
-                    objectInView=self.results['objects'])
+				qr_code_3d_position = None
+				current_qr_code = self.triggerGenerator.current_qr_code
+				if len(current_qr_code) > 0:
+					qr_code = current_qr_code[1]
+					cv2.rectangle(image, (qr_code[0], qr_code[1]), (qr_code[2], qr_code[3]), (0, 0, 255), 2)
+					qr_code_angles = self.data_processor.compute_qr_code_angles(
+						current_qr_code[1])
+					qr_code_distance, qr_code_depth_bbox = self.data_processor.compute_distance(
+						depth_image, current_qr_code[1])
+					qr_code_3d_position = self.data_processor.get_qr_code_3d_positions(
+						qr_code_distance, qr_code_angles, head_yaw, head_pitch,
+						camera_height)
 
-                print(tasks)
+				self.data_processor.square_detections(people_bboxes)
 
-                if send_data:
-                    self.data_sender.send_data(pickle.dumps(tasks))
-                    #print(people_3d_positions)
-                    #self.data_sender.send_data(pickle.dumps([[0, [1 + random.random() / 10, 1 + random.random() / 10, 1 + random.random() / 10]]]))
+				# Compute people IDs.
+				people_ids = self.tracker.updateIds(people_bboxes, people_scores)
 
-                # Show detections on RGB and depth images.
-                image = self.people_detector.draw_detections(imageWithBoxes, people_bboxes, people_scores, people_ids, people_distances)
-                cv2.imshow("Image", image)
-                cv2.waitKey(1)
+				# Use FaceNet to detect and recognize faces in RGB image.
+				faces = self.face_detect_recog.classifyFacesFromFrame(image,
+										self.shortTimeMemory.model_temporary,
+										self.shortTimeMemory.model_permanent)
+				# Associate detected faces with detected people.
+				people = self.data_processor.associate_faces_to_people(people_bboxes, faces)
 
-                if robot_stream:
-                    self.image_provider.release_image()
+				# Segment humans in detections.
+				segmented_image, mask = self.segmentation.segment_people(image, people)
 
-                pool.wait_completion()
+				# Compute more information about detected people.
+				people_angles = self.data_processor.compute_people_angles(people)
+
+				people_distances, depth_bboxes = self.data_processor.compute_people_distances(depth_image, mask, people)
 
 
-        except KeyboardInterrupt:
-            print("Script interrupted by user, shutting down...")
-            if send_data:
-                self.data_sender.stop()
-            if robot_stream:
-                self.image_provider.disconnect()
+				if len(people_distances) > 0:
+					if self.distances_smoothening == None:
+						self.distances_smoothening = KalmanSmoother(people_distances[0])
+					else:
+						distance = self.distances_smoothening.get_distance_estimation(people_distances[0])
+						if distance:
+							people_distances[0] = distance
+						else:
+							people = []
+							people_ids = []
+							people_angles = []
+							people_distances = []
 
-        except Exception as e:
-             print("Thrown exception: " + str(e))
-             traceback.print_exc()
-             self.run()
+				# Put all the informatin together.
+				people_info = self.data_processor.get_people_info(people, people_ids, people_angles, people_distances)
+
+				# Get people 3D position relative to the robot.
+				people_3d_positions = self.data_processor.get_people_3d_positions(people_info, head_yaw, head_pitch, camera_height)
+
+				# pool.wait_completion()
+				# (people_bboxes, people_scores) = results['bodies']
+
+				# Compute people IDs.
+				facesBBoxes = [box for (box, _, _, _) in faces]
+				faces_ids = self.tracker.updateIds(facesBBoxes,
+													np.ones(len(facesBBoxes)))
+
+				# triggers that work in paralel
+				pool.add_task(self.triggerGenerator.facesTrigger, faces)
+				pool.add_task(self.triggerGenerator.qrCodesTrigger, image)
+				pool.add_task(self.triggerGenerator.addBiggestFrame, image, faces, faces_ids)
+
+				# handle short time memory situations
+				speechRec = self.results['speechRecog']
+				self.results['speechRecog'] = ''
+				if 'hello' in speechRec:
+					self.triggerGenerator.addingToMemory = True
+					# aici ar trebui sa se puna un nume in self.personName, daca se stie
+					self.triggerGenerator.addMemoryTrigger()
+
+					if self.triggerGenerator.personName == '' and self.triggerGenerator.addingToMemory:
+						self.speakEngine.say('What is your name?')
+						self.speakEngine.runAndWait()
+				elif speechRec and self.triggerGenerator.addingToMemory \
+						and self.triggerGenerator.personName == '':
+					self.triggerGenerator.personName = speechRec
+				else:
+					self.triggerGenerator.addMemoryTrigger()
+
+
+				# Show people detections on RGB image.
+				imageWithBoxes = self.face_detect_recog.drawBBoxFaces(image,
+																	  faces,
+																	  faces_ids)
+				# image = self.people_detector.draw_detections(imageWithBoxes,
+				#                                              people_bboxes,
+				#                                              people_scores)
+
+				#cv2.imshow("Image", image)
+				#cv2.waitKey(1)
+
+				for info in people_3d_positions: # info = [id, pozitie, [nume]]
+					if len(info) == 3:
+						if info[2] not in self.encountered_people:
+							personShow = Task(id=self.tasksManagement.taskNo, type='show_on_map',
+											  person_name=info[2], message='', coordinates=info[1])
+							self.encountered_people[info[2]] = personShow
+							self.navigation.add_tasks([personShow])
+						else:
+							self.encountered_people[info[2]].coordinates = info[1]
+
+				if qr_code_3d_position:  # info = [id, pozitie, [nume]]
+					if current_qr_code[0] not in self.encountered_locations:
+						qrCodeShow = Task(
+							id=self.tasksManagement.taskNo,
+							type='show_on_map',
+							person_name='', message='',
+							location=current_qr_code[0],
+							coordinates=qr_code_3d_position)
+						self.encountered_locations[current_qr_code[0]] = qrCodeShow
+						self.navigation.add_tasks([qrCodeShow])
+					else:
+						self.encountered_locations[current_qr_code[0]].coordinates = qr_code_3d_position
+
+				# Send positions.
+				tasks = self.tasksManagement.getDoableShortTask(
+					peopleInView=self.results['people'],
+					locationInView=self.results['locations'],
+					objectInView=self.results['objects'])
+
+				self.navigation.refresh()
+				self.pose_manager.stand_init()
+
+				#if send_data:
+				#    self.data_sender.send_data(pickle.dumps(tasks))
+					#print(people_3d_positions)
+					#self.data_sender.send_data(pickle.dumps([[0, [1 + random.random() / 10, 1 + random.random() / 10, 1 + random.random() / 10]]]))
+
+				# Show detections on RGB and depth images.
+				image = self.people_detector.draw_detections(imageWithBoxes, people_bboxes, people_scores, people_ids, people_distances)
+				cv2.imshow("Image", image)
+				key = cv2.waitKey(1)
+				if key == 27:
+					print("Script interrupted by user, shutting down...")
+					self.is_running = False
+					if send_data:
+						self.data_sender.stop()
+					if robot_stream:
+						self.image_provider.disconnect()
+					pool.wait_completion()
+					exit(0)
+				#these are the 1-9 keys
+				elif key >= 49 and key <= 57:
+					self.navigation.move_to_goal(self.navigation.possible_goals[key - 49])
+
+				pool.wait_completion()
+
+
+		except KeyboardInterrupt:
+			print("Script interrupted by user, shutting down...")
+			self.is_running = False
+			if send_data:
+				self.data_sender.stop()
+			if robot_stream:
+				self.image_provider.disconnect()
+			pool.wait_completion()
+			exit(0)
+
+		except Exception as e:
+			print("There was an error!")
+			self.is_running = False
+			if send_data:
+				self.data_sender.stop()
+			if robot_stream:
+				self.image_provider.disconnect()
+			pool.wait_completion()
+			exit(0)
+
 
 
 if __name__ == "__main__":
-    application = None
+	application = None
 
-    if robot_stream:
-        # Initialize robot's NAOqi framework.
-        try:
-            connection_url = "tcp://" + ip + ":" + str(port)
-            application = qi.Application(["Main", "--qi-url=" + connection_url])
-        except RuntimeError:
-            print("Can't connect to NAOqi at \"" + ip + ":"  + str(port) +"\".\n"
-                "Please check your script arguments. Run with -h option for help.")
-            sys.exit(1)
+	if robot_stream:
+		# Initialize robot's NAOqi framework.
+		try:
+			connection_url = "tcp://" + ip + ":" + str(port)
+			application = qi.Application(["Main", "--qi-url=" + connection_url])
+		except RuntimeError:
+			print("Can't connect to NAOqi at \"" + ip + ":"  + str(port) +"\".\n"
+				"Please check your script arguments. Run with -h option for help.")
+			sys.exit(1)
 
-    with tf.Graph().as_default():
-        gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.6)
-        sess = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options, log_device_placement=False))
-        with sess.as_default():
-            modeldir = './Vision/FaceNet/pre_model/20170511-185253.pb'
-            load_model(modeldir)
-            pnet, rnet, onet = create_mtcnn(sess, './Vision/FaceNet/d_npy')
+	with tf.Graph().as_default():
+		gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.6)
+		sess = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options, log_device_placement=False))
+		with sess.as_default():
+			modeldir = './Vision/FaceNet/pre_model/20170511-185253.pb'
+			load_model(modeldir)
+			pnet, rnet, onet = create_mtcnn(sess, './Vision/FaceNet/d_npy')
 
-            main = Main(application, sess, pnet, rnet, onet)
-            main.run()
+			main = Main(application, sess, pnet, rnet, onet)
+			main.run()
 
 
 
@@ -307,18 +334,18 @@ keys = key.KeyStateHandler()
 # self.getImageForSTM(image, people, people_ids)
 def getImageForSTM(self, image, people, people_ids):
 
-    # k = cv2.waitKey(1)
-    # if k == ord('c'):
-    # Check if the spacebar is currently pressed:
-    if keys[key.SPACE]:
-        print("Am apasat space")
-        self.captureFrame = True
-    if self.captureFrame:
-        finish, name = self.triggerGenerator.addMemoryTrigger(
-            copy.deepcopy(image), people, people_ids)
-        if finish:
-            print("Done capturing faces: %s" % (name))
-            self.captureFrame = False
+	# k = cv2.waitKey(1)
+	# if k == ord('c'):
+	# Check if the spacebar is currently pressed:
+	if keys[key.SPACE]:
+		print("Am apasat space")
+		self.captureFrame = True
+	if self.captureFrame:
+		finish, name = self.triggerGenerator.addMemoryTrigger(
+			copy.deepcopy(image), people, people_ids)
+		if finish:
+			print("Done capturing faces: %s" % (name))
+			self.captureFrame = False
 """
 
 
@@ -326,8 +353,8 @@ def getImageForSTM(self, image, people, people_ids):
 # With a threadpool --------------------------------------------
 async_result1 = pool.apply_async(self.people_detector.detect, (image))
 async_result2 = pool.apply_async(self.face_detect_recog.classifyFacesFromFrame,
-                                 (image, self.shortTimeMemory.model_temporary,
-                                    self.shortTimeMemory.model_permanent))
+								 (image, self.shortTimeMemory.model_temporary,
+									self.shortTimeMemory.model_permanent))
 
 people_bboxes, people_scores = async_result1.get()
 people, imageWithBoxes = async_result2.get()
