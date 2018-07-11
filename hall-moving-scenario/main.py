@@ -51,6 +51,8 @@ frameRate = 30
 
 recognition_threshold = 0.5
 
+known_labels = {8: "Chair", 10 : "Table", 15: "Plant", 17:"Sofa", 19:"Monitor"}
+
 class Main(object):
 	def __init__(self, app, sess, pnet, rnet, onet):
 		self.people_detector = PeopleDetector()
@@ -109,6 +111,7 @@ class Main(object):
 			while self.is_running:
 				if robot_stream:
 					image, depth_image, camera_height, head_yaw, head_pitch = self.image_provider.get_cv_image()
+					#self.pose_manager.stand_init()
 					self.image_provider.release_image()
 				else:
 					_, image = self.camera.read()
@@ -119,8 +122,7 @@ class Main(object):
 
 				# # Use YOLO to detect people in frames.
 				# pool.add_task(self.people_detector.detect, image, results)
-				people_bboxes, people_scores = self.people_detector.detect(image)
-
+				people_bboxes, people_scores, objects = self.people_detector.detect(image)
 				qr_code_3d_position = None
 				current_qr_code = self.triggerGenerator.current_qr_code
 				if len(current_qr_code) > 0:
@@ -133,6 +135,35 @@ class Main(object):
 					qr_code_3d_position = self.data_processor.get_qr_code_3d_positions(
 						qr_code_distance, qr_code_angles, head_yaw, head_pitch,
 						camera_height)
+
+				objects_3d_locations = []
+				if len(objects) > 0:
+					for i in range(len(objects)):
+						obj = objects[i]
+						if obj[1] < 0.7:
+							continue
+						imgLoc = obj[0]
+						cv2.rectangle(image, (imgLoc[0], imgLoc[1]), (imgLoc[2], imgLoc[3]), (0, 255, 255), 2)
+						object_angles = self.data_processor.compute_qr_code_angles(
+							imgLoc)
+						object_distance, object_depth_bbox = self.data_processor.compute_distance(
+							depth_image, imgLoc)
+						object_3d_position = self.data_processor.get_qr_code_3d_positions(
+							object_distance, object_angles, head_yaw, head_pitch,
+							camera_height)
+						objects_3d_locations.append((object_3d_position, obj[2]))
+					'''
+					qr_code = current_qr_code[1]
+					cv2.rectangle(image, (qr_code[0], qr_code[1]), (qr_code[2], qr_code[3]), (0, 255, 255), 2)
+					qr_code_angles = self.data_processor.compute_qr_code_angles(
+						current_qr_code[1])
+					qr_code_distance, qr_code_depth_bbox = self.data_processor.compute_distance(
+						depth_image, current_qr_code[1])
+					qr_code_3d_position = self.data_processor.get_qr_code_3d_positions(
+						qr_code_distance, qr_code_angles, head_yaw, head_pitch,
+						camera_height)
+					'''
+
 
 				self.data_processor.square_detections(people_bboxes)
 
@@ -238,6 +269,17 @@ class Main(object):
 						self.navigation.add_tasks([qrCodeShow])
 					else:
 						self.encountered_locations[current_qr_code[0]].coordinates = qr_code_3d_position
+				if len(objects_3d_locations) > 0:
+					for (coord, label) in objects_3d_locations:
+						if label in known_labels:
+							objectShow = Task(
+								id=self.tasksManagement.taskNo,
+								type='show_on_map',
+								person_name='', message='',
+								location='',
+								object=str(known_labels[label]),
+								coordinates=coord)
+							self.navigation.add_tasks([objectShow])
 
 				# Send positions.
 				tasks = self.tasksManagement.getDoableShortTask(
@@ -246,7 +288,6 @@ class Main(object):
 					objectInView=self.results['objects'])
 
 				self.navigation.refresh()
-				self.pose_manager.stand_init()
 
 				#if send_data:
 				#    self.data_sender.send_data(pickle.dumps(tasks))
@@ -284,7 +325,7 @@ class Main(object):
 			exit(0)
 
 		except Exception as e:
-			print("There was an error!")
+			print("There was an error!", e)
 			self.is_running = False
 			if send_data:
 				self.data_sender.stop()

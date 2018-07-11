@@ -15,6 +15,7 @@ class PepperLocalization:
 
     def __init__(self):
         rospy.Subscriber("/slam_out_pose", PoseStamped, self.update_pose)
+        rospy.Subscriber("/amcl_pose", PoseWithCovarianceStamped, self.update_pose)
         rospy.Subscriber("/map", OccupancyGrid, self.update_map)
         self.map = None
         self.latest_pose = None
@@ -26,7 +27,10 @@ class PepperLocalization:
         return self.latest_pose
 
     def update_pose(self, data):
-        self.latest_pose = data
+        if type(data) is PoseWithCovarianceStamped:
+            self.latest_pose = data.pose
+        else:
+            self.latest_pose = data
 
     def update_map(self, data):
         self.map = data
@@ -34,7 +38,7 @@ class PepperLocalization:
         self.map_height = data.info.height
         self.resolution = data.info.resolution
 
-        if(self.latest_pose):
+        if(self.latest_pose and self.latest_pose.pose):
             x = int(self.map_width / 2 + self.latest_pose.pose.position.x / self.resolution)
             y = int(self.map_height / 2 + self.latest_pose.pose.position.y / self.resolution)
             self.latest_map_pose = (x, y)

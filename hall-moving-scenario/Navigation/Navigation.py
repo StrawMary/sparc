@@ -7,6 +7,8 @@ import tf
 import tf2_ros
 from geometry_msgs.msg import Quaternion, Pose, Point, Vector3
 from std_msgs.msg import Header, ColorRGBA
+from mpl_toolkits.mplot3d import Axes3D
+import matplotlib.pyplot as plt
 
 class Navigation:
 	def __init__(self):
@@ -18,7 +20,12 @@ class Navigation:
 		self.people_marke_array_publisher = rospy.Publisher('/people', MarkerArray, queue_size=100)
 		self.locations_marker_array_publisher = rospy.Publisher('/qrCodes', MarkerArray, queue_size=100)
 		self.move_publisher = rospy.Publisher('/move_base_simple/goal', PoseStamped, queue_size=10)
+
+		self.all_object_locations = {}
 		self.possible_goals = []
+		self.objectId = 0
+		self.fig = plt.figure()
+		self.ax = self.fig.add_subplot(111, projection='3d')
 
 	def add_new_possible_goal(self, goal):
 		self.possible_goals.append(goal)
@@ -106,12 +113,38 @@ class Navigation:
 			i += 1
 		self.locations_marker_array_publisher.publish(markers)
 
+		for key in self.location_positions:
+			xs =[]
+			ys = []
+			zs = []
+			for pose in self.location_positions[key]:
+				xs.append(pose.pose.position.x)
+				ys.append(pose.pose.position.y)
+				zs.append(pose.pose.position.z)
+				self.ax.scatter(xs, ys, zs)
+
+			self.ax.set_xlabel('X')
+			self.ax.set_ylabel('Y')
+			self.ax.set_zlabel('Z')
+			self.fig.savefig(key + '.png')
+			plt.cla()
+			print(key)
+			print(xs)
+			print(ys)
+			print(zs)
+
 	def add_tasks(self, tasks):
 		self.run_tasks(tasks)
 
 	def refresh(self):
 		self.publish_persons()
 		self.publish_locations()
+
+	def compute_euclidian_distance(self, p1, p2):
+		from scipy.spatial import distance
+		a = (p1.x, p1.y, p1.z)
+		b = (p2.x, p2.y, p2.z)
+		return distance.euclidean(a, b)
 
 	def run_tasks(self, tasks):
 		if not tasks or len(tasks) == 0:
@@ -122,7 +155,10 @@ class Navigation:
 			if task.type == 'show_on_map':
 				pose = PoseStamped()
 				loc = Pose()
-				robot_pos = self.pepper_localization.get_pose().pose
+				last_pose = self.pepper_localization.get_pose()
+				if not last_pose:
+					return
+				robot_pos = last_pose.pose
 				loc.position.x = task.coordinates[0]
 				loc.position.y = task.coordinates[1]
 				loc.position.z = task.coordinates[2]
@@ -136,7 +172,7 @@ class Navigation:
 					pose_in_map = listener.transformPose('/odom', pose)
 					pose_in_map.header.frame_id = 'odom'
 
-					if task.person_name != '':
+					if task.person_name:
 						person_name = task.person_name
 						if not person_name in self.person_positions:
 							self.person_positions[person_name] = [pose_in_map]
@@ -145,7 +181,7 @@ class Navigation:
 						else:
 							self.person_positions[person_name][0] = pose_in_map
 
-					if task.location != '':
+					if task.location:
 						location = task.location
 						if not location in self.location_positions:
 							self.location_positions[location] = [pose_in_map]
@@ -153,5 +189,26 @@ class Navigation:
 							print("Found " + str(location))
 						else:
 							self.location_positions[location][0] = pose_in_map
+
+					if task.object:
+						object = task.object
+						refObj = str(object) + str(self.objectId)
+						matched = None
+						for key in self.location_positions:
+							if key.startswith(object):
+								if self.compute_euclidian_distance(self.location_positions[key][0].pose.position, pose_in_map.pose.position) < 1:
+									matched = key
+						if not matched:
+							self.location_positions[refObj] = [pose_in_map]
+							self.add_new_possible_goal(refObj)
+							self.objectId += 1
+						else:
+							self.location_positions[matched].append(pose_in_map)
+
+
+
+
+
+
 				except (tf2_ros.TransformException, tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
 					pass
