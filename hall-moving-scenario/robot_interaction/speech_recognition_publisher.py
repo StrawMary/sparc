@@ -6,7 +6,7 @@ import traceback
 from std_msgs.msg import String
 
 
-api_key = '6FS5ELL74FF3JKGNHOWMJDVGJYJJYD7X'
+api_key = 'GAYZBANQW5CSBHEW4DG5H4O4IX3PLXBN'
 
 
 class SpeechRecognizer:
