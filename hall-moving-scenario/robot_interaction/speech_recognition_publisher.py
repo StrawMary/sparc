@@ -2,16 +2,18 @@ import rospy
 import speech_recognition as sr
 import time
 import traceback
-
+import pickle
 from std_msgs.msg import String
 
 
-api_key = 'GAYZBANQW5CSBHEW4DG5H4O4IX3PLXBN'
+api_key = '026f72c808604bbeabaf4af3f9339334'
 
 
 class SpeechRecognizer:
 	def __init__(self):
 		self.engine = sr.Recognizer()
+		self.activated = True
+
 		self.microphone = sr.Microphone()
 		self.publisher = rospy.Publisher('speech', String, queue_size=10)
 		rospy.init_node('talker', anonymous=True)
@@ -24,11 +26,11 @@ class SpeechRecognizer:
 		}
 
 		with self.microphone as source:
-			#self.engine.adjust_for_ambient_noise(source)
+			self.engine.adjust_for_ambient_noise(source)
 			audio = self.engine.listen(source)
 
 		try:
-			response['text'] = self.engine.recognize_wit(audio, key=api_key, show_all='True')
+			response['text'] = self.engine.recognize_bing(audio, key=api_key)
 		except sr.RequestError:
 			response['error'] = 'API unavailable'
 		except sr.UnknownValueError:
@@ -42,9 +44,16 @@ class SpeechRecognizer:
 				speech = self.recognize_speech()
 				print(speech)
 				if not speech['error'] and speech['text']:
-					self.publisher.publish(speech['text'])
+					if(speech['text'].lower() == 'hey pepper'):
+						self.activated = True
+						print("Listening")
+						continue
+
+				if self.activated:
+					self.publisher.publish(str(speech['text']))
 					self.rate.sleep()
-				
+					self.activated = False
+
 		except KeyboardInterrupt:
 			print('Forced interruption by user, shutting down...')
 
