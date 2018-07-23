@@ -1,5 +1,7 @@
+from std_msgs.msg import ColorRGBA
+
 # Receive or send data to the robot
-robot_stream = False
+robot_stream = True
 send_data = False
 
 # Robot IP information.
@@ -33,3 +35,22 @@ unknown_name = 'unknown'
 
 # Minimum euclidian distance between two objects of same class to be different.
 objects_distance_threshold = 1.0
+
+# Show images and positions.
+debug_mode = True
+
+# Task priorities.
+GO_TO_PRIOR = 3
+FIND_PRIOR = 2
+SAY_PRIOR = 1
+
+# Map colors to display.
+person_color = ColorRGBA(0.0, 0.5, 0.5, 0.8)
+object_color = ColorRGBA(1.0, 1.0, 0.5, 0.8)
+qrcode_color = ColorRGBA(1.0, 0.5, 0.5, 0.8)
+
+# Catch phrase to start speech recognition.
+speech_catch_phrase = 'hey pepper'
+
+# Eyes fade duration.
+fade_duration = 1.0

@@ -1,10 +1,7 @@
 import rospy
 import speech_recognition as sr
-import time
 import traceback
-import pickle
 from std_msgs.msg import String
-
 
 api_key = '026f72c808604bbeabaf4af3f9339334'
 
@@ -15,7 +12,7 @@ class SpeechRecognizer:
 		self.activated = True
 
 		self.microphone = sr.Microphone()
-		self.publisher = rospy.Publisher('speech', String, queue_size=10)
+		self.publisher = rospy.Publisher('speech_text', String, queue_size=10)
 		rospy.init_node('talker', anonymous=True)
 		self.rate = rospy.Rate(10)
 
@@ -43,16 +40,8 @@ class SpeechRecognizer:
 			while not rospy.is_shutdown():
 				speech = self.recognize_speech()
 				print(speech)
-				if not speech['error'] and speech['text']:
-					if(speech['text'].lower() == 'hey pepper'):
-						self.activated = True
-						print("Listening")
-						continue
-
-				if self.activated:
-					self.publisher.publish(str(speech['text']))
-					self.rate.sleep()
-					self.activated = False
+				self.publisher.publish(str(speech['text']))
+				self.rate.sleep()
 
 		except KeyboardInterrupt:
 			print('Forced interruption by user, shutting down...')

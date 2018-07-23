@@ -1,109 +1,73 @@
 import heapq
 
 from enum import Enum
+from navigation.navigation_manager import NavigationManager, ClassType
+from robot_interaction.speech_recognition_subscriber import SpeechManager
 from task import Task
-
-KNOWN_LABELS = {8: 'Chair', 10 : 'Table', 15: 'Plant', 17: 'Sofa', 19: 'Monitor'}
-TASK_NO = 1
+import config as cfg
 
 
 class TaskType(Enum):
-    SHOW_ON_MAP = 1
-    GO_TO = 2
-    SAY_SOMETHING = 3
-    FIND_OBJECT = 4
-
-
-class ClassType(Enum):
-    PERSON = 1
-    OBJECT = 2
-    QRCODE = 3
+    GO_TO = 1
+    SAY_SOMETHING = 2
+    FIND_OBJECT = 3
 
 
 class TaskManager:
     def __init__(self):
-        self.encountered_people = {}
-        self.encountered_locations = {}
-
         self.ongoing_tasks = []
+        self.speech_manager = SpeechManager(self.interpret_speech)
+        self.navigation_manager = NavigationManager()
 
+    def interpret_speech(self, data):
+        if "go to alex" in data:
+            if self.create_tasks_go("alex", class_type=ClassType.PERSON):
+                self.create_tasks_say("Going to Alex")
+            else:
+                self.create_tasks_say("Sorry I cannot do that!")
+        if "go to stephanie" in data:
+            if self.create_tasks_go("stephanie", class_type=ClassType.PERSON):
+                self.create_tasks_say("Going to Stephanie")
+            else:
+                self.create_tasks_say("Sorry I cannot do that!")
 
-    def create_tasks(self, type, data, value=None):
-        tasks = []
-        if type == TaskType.SHOW_ON_MAP:
-            tasks = self.create_tasks_show(data, value)
-        elif type == TaskType.GO_TO:
-            tasks = self.create_tasks_go(data)
-        elif type == TaskType.SAY_SOMETHING:
-            tasks = self.create_tasks_say(data)
-        elif type == TaskType.FIND_OBJECT:
-            tasks = self.create_tasks_find(data)
-
-        for task in tasks:
-            heapq.heappush(self.ongoing_tasks, (task.priority, task))
-        return tasks
-
-
-    def create_tasks_show(self, data, value):
-        tasks = []
-        if value == 'people':
-            for info in data: # info = [id, position, name]
-                if len(info) > 2:
-                    if info[2] in self.encountered_people:
-                        self.encountered_people[info[2]].coordinates = info[1]
-                    else:
-                        show_task = Task(
-                            type=TaskType.SHOW_ON_MAP,
-                            class_type=ClassType.PERSON,
-                            label=info[2],
-                            coordinates=info[1]
-                        )
-                        self.encountered_people[info[2]] = show_task
-                        tasks.append(show_task)
-
-        elif value == 'qrcodes':
-            for (label, position) in data: # info = [label, position]
-                if label in self.encountered_locations:
-                    self.encountered_locations[label].coordinates = position
-                else:
-                    show_task = Task(
-                        type=TaskType.SHOW_ON_MAP,
-                        class_type=ClassType.QRCODE,
-                        label=label,
-                        coordinates=position
-                    )
-                    self.encountered_locations[label] = show_task
-                    tasks.append(show_task)                   
-
-        elif value == 'objects':
-            for (class_id, position) in data: # info = [class_id, position]
-                if class_id in KNOWN_LABELS:
-                    show_task = Task(
-                        type=TaskType.SHOW_ON_MAP,
-                        class_type=ClassType.OBJECT,
-                        label=str(KNOWN_LABELS[class_id]),
-                        coordinates=position
-                    )
-                    tasks.append(show_task)
-
-        return tasks
-
-
-    def create_tasks_go(self, data):
-        pass
-
+    def create_tasks_go(self, data, class_type):
+        if data and self.navigation_manager.is_located(data):
+            go_to_task = Task(type=TaskType.GO_TO,
+                              priority=cfg.GO_TO_PRIOR,
+                              class_type=class_type,
+                              label=data,
+                              value=self.navigation_manager.get_coordinate_for_label(data))
+            heapq.heappush(self.ongoing_tasks, (go_to_task.priority, go_to_task))
+            return True
+        return False
 
     def create_tasks_say(self, data):
-        pass
-
+        if data:
+            say_task = Task(type=TaskType.SAY_SOMETHING,
+                            priority=cfg.SAY_PRIOR,
+                            value=data)
+            heapq.heappush(self.ongoing_tasks, (say_task.priority, say_task))
+            return True
+        return False
 
     def create_tasks_find(self, data):
         pass
 
-
     def get_next_task(self):
-        for task in self.tasks:
-            if not task.is_done():
-                return task
-        return None
+        if self.ongoing_tasks:
+            return heapq.heappop(self.ongoing_tasks)
+        return -1, None
 
+    def step(self):
+        prior, task = self.get_next_task()
+        if task:
+            self.execute_task(task)
+
+    def execute_task(self, task):
+        if task.type == TaskType.GO_TO:
+            self.navigation_manager.run_task_go_to(task)
+        elif task.type == TaskType.SAY_SOMETHING:
+            self.speech_manager.run_task_say(task)
+        elif task.type == TaskType.FIND_OBJECT:
+            self.navigation_manager.run_task_find(task)

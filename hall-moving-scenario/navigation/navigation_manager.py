@@ -1,27 +1,31 @@
 import config as cfg
-import matplotlib.pyplot as plt
 import rospy
 import tf
 import tf2_ros
-import sys
 
 from actionlib_msgs.msg import *
 from copy import deepcopy
+from enum import Enum
 from geometry_msgs.msg import Point, Pose, PoseStamped, Vector3
-from mpl_toolkits.mplot3d import Axes3D
 from scipy.spatial import distance
 from std_msgs.msg import Header, ColorRGBA
 from visualization_msgs.msg import Marker, MarkerArray
 
-from task_management.task_manager import ClassType, TaskType
+from navigation.target import Target
 from robot_localization import PepperLocalization
 
 
-class Navigation:
-	def __init__(self):
-		if cfg.robot_stream:
-			rospy.init_node('talker', anonymous=True)
+KNOWN_LABELS = {8: 'chair', 10: 'table', 15: 'plant', 17: 'sofa', 19: 'monitor'}
 
+
+class ClassType(Enum):
+	PERSON = 1
+	OBJECT = 2
+	QRCODE = 3
+
+
+class NavigationManager:
+	def __init__(self):
 		self.pepper_localization = PepperLocalization()
 
 		if cfg.robot_stream:
@@ -33,21 +37,8 @@ class Navigation:
 		self.encountered_positions = {}
 		self.possible_goals = []
 
-		# self.fig = plt.figure()
-		# self.ax = self.fig.add_subplot(111, projection='3d')
-
-
 	def add_new_possible_goal(self, goal):
 		self.possible_goals.append(goal)
-		for i in range(len(self.possible_goals)):
-			print(str(i+1) + ': ' + str(self.possible_goals[i]))
-
-
-	def move_to_coordinate(self, goal):
-		print('Move to: ' + str(goal))
-		if cfg.robot_stream:
-			self.move_publisher.publish(goal)
-
 
 	def move_to_goal(self, key):
 		goal = self.possible_goals[key]
@@ -56,6 +47,18 @@ class Navigation:
 			return True
 		return False
 
+	def move_to_coordinate(self, goal):
+		if cfg.robot_stream:
+			self.move_publisher.publish(goal)
+
+	def is_located(self, key):
+		return key in self.encountered_positions
+
+	def get_coordinate_for_label(self, key):
+		if key in self.encountered_positions:
+			return self.encountered_positions[key][1]
+		else:
+			return None
 
 	def move_to_map_pose(self):
 		if self.map_pose:
@@ -64,10 +67,62 @@ class Navigation:
 		else:
 			return False
 
+	def compute_euclidian_distance(self, p1, p2):
+		a = (p1.x, p1.y, p1.z)
+		b = (p2.x, p2.y, p2.z)
+		return distance.euclidean(a, b)
+
+	def show_positions(self, data, value):
+		targets = []
+		if value == 'people':
+			for info in data:  # info = [id, position, name]
+				if len(info) > 2:
+					show_target = Target(
+						class_type=ClassType.PERSON,
+						label=info[2],
+						coordinates=info[1]
+					)
+					targets.append(show_target)
+
+		elif value == 'qrcodes':
+			for (label, position) in data:  # info = [label, position]
+				show_target = Target(
+					class_type=ClassType.QRCODE,
+					label=label,
+					coordinates=position
+				)
+				targets.append(show_target)
+
+		elif value == 'objects':
+			for (class_id, position) in data:  # info = [class_id, position]
+				if class_id in KNOWN_LABELS:
+					show_target = Target(
+						class_type=ClassType.OBJECT,
+						label=str(KNOWN_LABELS[class_id]),
+						coordinates=position
+					)
+					targets.append(show_target)
+
+		self.show_targets(targets)
+
+	def run_task_go_to(self, task):
+		self.move_to_coordinate(task.value)
+
+	def run_task_find(self, task):
+		pass
+
+	def show(self, people_3d_positions, objects_3d_positions, qrcodes_3d_positions):
+		self.show_positions(people_3d_positions, 'people')
+		self.show_positions(objects_3d_positions, 'objects')
+		self.show_positions(qrcodes_3d_positions, 'qrcodes')
+
+		if cfg.debug_mode:
+			self.publish_positions()
 
 	def publish_positions(self):
 		markers = []
 		i = 0
+		print(self.encountered_positions.keys())
 		for label in self.encountered_positions:
 			marker = Marker(
 				type=Marker.TEXT_VIEW_FACING,
@@ -93,57 +148,15 @@ class Navigation:
 			)
 			markers.append(marker2)
 			i += 1
-		
+
 		if cfg.robot_stream:
 			self.marker_array_publisher.publish(markers)
 
-		# for key in self.encountered_positions:
-		# 	if task.class_type == ClassType.OBJECT or task.class_type == ClassType.QRCODE:
-		# 		xs =[]
-		# 		ys = []
-		# 		zs = []
-		# 		for pose in self.location_positions[key][1:]:
-		# 			xs.append(pose.pose.position.x)
-		# 			ys.append(pose.pose.position.y)
-		# 			zs.append(pose.pose.position.z)
-		# 			self.ax.scatter(xs, ys, zs)
+	def show_targets(self, targets):
+		for target in targets:
+			self.show_target(target)
 
-		# 		self.ax.set_xlabel('X')
-		# 		self.ax.set_ylabel('Y')
-		# 		self.ax.set_zlabel('Z')
-		# 		self.fig.savefig(key + '.png')
-		# 		plt.cla()
-		# 		print(key)
-		# 		print(xs)
-		# 		print(ys)
-		# 		print(zs)
-
-
-	def show_map_positions(self):
-		self.publish_positions()
-
-
-	def compute_euclidian_distance(self, p1, p2):
-		a = (p1.x, p1.y, p1.z)
-		b = (p2.x, p2.y, p2.z)
-		return distance.euclidean(a, b)
-
-
-	def add_tasks(self, tasks):
-		self.run_tasks(tasks)
-
-
-	def run_tasks(self, tasks):
-		for task in tasks:
-			if task.type == TaskType.SHOW_ON_MAP:
-				self.run_task_show(task)
-			elif task.type == TaskType.GO_TO:
-				self.run_task_go_to(task)
-			elif task.type == TaskType.FIND_OBJECT:
-				self.run_task_find(task)
-
-
-	def run_task_show(self, task):
+	def show_target(self, target):
 		if cfg.robot_stream:
 			robot_last_pose = self.pepper_localization.get_pose()
 		else:
@@ -152,9 +165,9 @@ class Navigation:
 			return
 
 		loc = Pose()
-		loc.position.x = task.coordinates[0]
-		loc.position.y = task.coordinates[1]
-		loc.position.z = task.coordinates[2]
+		loc.position.x = target.coordinates[0]
+		loc.position.y = target.coordinates[1]
+		loc.position.z = target.coordinates[2]
 		loc.orientation = robot_last_pose.pose.orientation
 		pose = PoseStamped()
 		pose.header.frame_id = 'laser'
@@ -169,41 +182,35 @@ class Navigation:
 			else:
 				pose_in_map = PoseStamped()
 
-			if task.class_type == ClassType.OBJECT:
-				object_ref = task.label + str(self.object_ID)
+			if target.class_type == ClassType.OBJECT:
+				object_ref = target.label + str(self.object_ID)
 				matched = None
 				for key in self.encountered_positions:
-					if key.startswith(task.label):
+					if key.startswith(target.label):
 						if self.compute_euclidian_distance(
 								self.encountered_positions[key][1].pose.position,
 								pose_in_map.pose.position) < cfg.objects_distance_threshold:
 							matched = key
 				if not matched:
-					self.encountered_positions[object_ref] = [ColorRGBA(0.5, 0.5, 0.0, 0.8), pose_in_map]
+					self.encountered_positions[object_ref] = [cfg.object_color, pose_in_map]
 					self.object_ID += 1
 					self.add_new_possible_goal(object_ref)
 				else:
 					self.encountered_positions[matched].append(pose_in_map)
 
 			else:
-				label = task.label
-				if not task.label in self.encountered_positions:
-					self.encountered_positions[task.label] = [ColorRGBA(0.5, 0.5, 1.0, 0.8), pose_in_map]
-					if task.class_type == ClassType.PERSON:
-						self.encountered_positions[task.label][0] = ColorRGBA(0.5, 1.0, 1.0, 0.8)
-					self.add_new_possible_goal(task.label)
+				if not target.label in self.encountered_positions:
+					self.encountered_positions[target.label] = [cfg.qrcode_color, pose_in_map]
+					if target.class_type == ClassType.PERSON:
+						self.encountered_positions[target.label][0] = cfg.person_color
+					self.add_new_possible_goal(target.label)
 				else:
-					self.encountered_positions[task.label][1] = pose_in_map
+					self.encountered_positions[target.label][1] = pose_in_map
 
 		except (tf2_ros.TransformException, tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
 			pass
 
-
-	def run_task_go_to(self, task):
+	def shut_down(self):
 		pass
-
-	def run_task_find(self, task):
-		pass
-
 
 

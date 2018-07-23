@@ -4,7 +4,7 @@ import math
 import numpy as np
 
 
-class DataProcessor():
+class DataProcessor:
     def __init__(self):
         self.bbox_thresh = cfg.close_detection_area_percentage * (cfg.width*cfg.height)
         self.cX = cfg.width/2
@@ -14,12 +14,10 @@ class DataProcessor():
     #                     Association between faces and people detections
     ###############################################################################################
 
-
     def square_detections(self, bboxes):
         for i in range(len(bboxes)):
             width = bboxes[i][2] - bboxes[i][0]
             bboxes[i][3] = bboxes[i][1] + width
-
 
     def get_intersection_percentage(self, person_bbox, face_bbox):
         p_left, p_top, p_right, p_bottom = person_bbox
@@ -34,7 +32,6 @@ class DataProcessor():
         intersection_area = (right - left) * (bottom - top)
 
         return intersection_area * 1.0 / area
-
 
     def associate_faces_to_people(self, people_bboxes, faces):
         people = []
@@ -57,11 +54,9 @@ class DataProcessor():
 
         return people
 
-
     ###############################################################################################
     #                     Distances relatively to the robot
     ###############################################################################################
-
 
     def compute_distance(self, depth_image, bbox, real_bbox=[], segmented_pixels=[]):
         # Adjust position from RGB image to depth image.
@@ -78,11 +73,10 @@ class DataProcessor():
         if distance == 0.4:
             if real_bbox != []:
                 left, top, right, bottom = real_bbox
-            if (right - left) * (bottom - top) < cfg.bbox_thresh:
+            if (right - left) * (bottom - top) < cfg.close_detection_area_percentage * cfg.width * cfg.height:
                 distance = 5.0
 
         return distance, translated_bbox
-
 
     def compute_objects_distances(self, depth_image, objects):
         distances = []
@@ -95,7 +89,6 @@ class DataProcessor():
 
         return distances, depth_bboxes
 
-
     def compute_people_distances(self, depth_image, mask_image, people):
         distances = []
         depth_bboxes = []
@@ -104,7 +97,6 @@ class DataProcessor():
 
         for person in people:
             bbox = person['person_bbox']
-            person_left, person_top, person_right, person_bottom = person['person_bbox']
             if 'face_bbox' in person:
                 bbox = person['face_bbox']
 
@@ -122,17 +114,14 @@ class DataProcessor():
 
         return distances, depth_bboxes
 
-
     ###############################################################################################
     #                     Angles relatively to the center of the camera
     ###############################################################################################
-
 
     def get_center(self, left, top, right, bottom):
         cX = left + (right - left) / 2
         cY = top + (bottom - top) / 2
         return [cX, cY]
-
 
     def compute_angles(self, bbox):
         left, top, right, bottom = bbox
@@ -143,13 +132,11 @@ class DataProcessor():
         
         return (math.radians(angleX), math.radians(angleY))
 
-
     def compute_objects_angles(self, objects):
         angles = []
         for bbox, _, _ in objects:
             angles.append(self.compute_angles(bbox))
         return angles
-
 
     def compute_people_angles(self, people):
         angles = []
@@ -162,11 +149,9 @@ class DataProcessor():
             angles.append(self.compute_angles(bbox))
         return angles
 
-
     ###############################################################################################
     #                     3D positions relatively to the robot
     ###############################################################################################
-
 
     def get_3d_position(self, distance, angles, head_yaw, head_pitch, camera_height):
         # Angle in radians on y direction in the robot's 3D coordinates (x on camera).
@@ -179,7 +164,6 @@ class DataProcessor():
         position = (x, y, -z + camera_height)
 
         return position
-
 
     def get_objects_3d_positions(self, objects, distances, head_yaw, head_pitch, camera_height):
         positions = []
@@ -194,12 +178,11 @@ class DataProcessor():
                 camera_height
             )
             if class_id == 'QRCODE':
-                positions.append((value, position))
+                positions.append((value.lower(), position))
             else:
                 positions.append((class_id, position))
 
         return positions
-
 
     def get_people_3d_positions(self, people, people_ids, people_distances, head_yaw, head_pitch, camera_height):
         people_angles = self.compute_people_angles(people)
@@ -214,15 +197,13 @@ class DataProcessor():
                 camera_height
             )
             if 'name' in person:
-                positions.append((people_ids[i], position, person['name']))
+                positions.append((people_ids[i], position, person['name'].lower()))
             else:
                 positions.append((people_ids[i], position))
 
         return positions
 
-
     ###############################################################################################
-
 
     def draw_squares(self, depth_image, centers):
         depth_image = cv2.cvtColor(depth_image, cv2.COLOR_GRAY2BGR)
