@@ -1,5 +1,6 @@
 import config as cfg
 import rospy
+import requests
 
 from naoqi import ALProxy
 from std_msgs.msg import String
@@ -7,17 +8,16 @@ from std_msgs.msg import String
 
 class SpeechManager:
 	def __init__(self, task_m):
-		self.catch_phrase = cfg.catch_phrase
+		self.catch_phrase = cfg.speech_catch_phrase
 		self.fade_duration = cfg.fade_duration
 		self.robot_stream = cfg.robot_stream
 		self.task_m = task_m
 
-		self.leds_service = ALProxy("ALLeds", cfg.ip, cfg.port)
-		self.speech_service = ALProxy("ALTextToSpeech", cfg.ip, cfg.port)
-
 		self.activated = False
 
 		if self.robot_stream:
+			self.leds_service = ALProxy("ALLeds", cfg.ip, cfg.port)
+			self.speech_service = ALProxy("ALTextToSpeech", cfg.ip, cfg.port)
 			rospy.Subscriber('speech_text', String, self.callback)
 
 	def run(self):
@@ -35,6 +35,27 @@ class SpeechManager:
 		self.activated = False
 		self.leds_service.fadeRGB('FaceLeds', "white", self.fade_duration)
 
+	def interpret(self, text):
+		if not text:
+			return None
+
+		params = {'access_token': cfg.access_key, 'q': text}
+		response = requests.get(url=cfg.URL, params=params).json()
+		if 'entities' not in response:
+			print('API server error: ' + str(response))
+			return None
+		entities = response['entities']
+		if len(entities.keys()) < 2 or 'intent' not in entities or len(entities['intent']) == 0:
+			print('Cannot interpret speech.')
+			return None
+		intent = entities['intent'][0]
+		if cfg.intent_entities[intent['value']] not in entities or len(cfg.intent_entities[intent['value']]) == 0:
+			print('Missing intent entity.')
+			return None
+		entity = entities[cfg.intent_entities[intent['value']]][0]
+
+		return {'intent': intent['value'], 'entity': entity['value']}
+
 	def callback(self, data):
 		text = data.data.strip().lower()
 		print('Recognized speech: ' + text)
@@ -43,12 +64,22 @@ class SpeechManager:
 			self.activate()
 			return
 
-		self.task_m(text)
+		interpreted_speech = self.interpret(text)
+		self.task_m(interpreted_speech)
 
 		if self.activated:
 			self.deactivate()
 
 
 if __name__ == '__main__':
-	speech_recognizer = SpeechManager()
-	speech_recognizer.run()
+	class AttrDict(dict):
+		def __init__(self, *args, **kwargs):
+			super(AttrDict, self).__init__(*args, **kwargs)
+			self.__dict__ = self
+	data = AttrDict()
+	data.update({'data': raw_input('Command:')})
+
+	def test_f(text):
+		print(text)
+	speech_recognizer = SpeechManager(test_f)
+	speech_recognizer.callback(data)
