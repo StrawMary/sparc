@@ -1,7 +1,7 @@
 from std_msgs.msg import ColorRGBA
 
 # Receive or send data to the robot
-robot_stream = True
+robot_stream = False
 send_data = False
 
 # Robot IP information.
@@ -54,3 +54,13 @@ speech_catch_phrase = 'hey pepper'
 
 # Eyes fade duration.
 fade_duration = 1.0
+
+# Wit.ai api params.
+URL = 'https://api.wit.ai/message'
+access_key = 'VAYDJDTZRU4644WDEK4Q6YVXLY47F7GC'
+
+# Wit.ai intent-entity association.
+GO_TO_INTENT = 'go to'
+FIND_INTENT = 'find'
+SAY_INTENT = 'say'
+intent_entities = {GO_TO_INTENT: 'destination', FIND_INTENT: 'target', SAY_INTENT: 'subject'}
