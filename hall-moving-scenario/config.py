@@ -1,3 +1,4 @@
+from subject_presentations import *
 from std_msgs.msg import ColorRGBA
 
 # Receive or send data to the robot
@@ -16,14 +17,14 @@ frameRate = 30
 # Camera fields of view information.
 width = 640
 height = 480
-x_maximum_view_angle = 29.29 # horizontal field of view
-y_maximum_view_angle = 22.82 # vertical field of view
+x_maximum_view_angle = 29.29  # horizontal field of view
+y_maximum_view_angle = 22.82  # vertical field of view
 
 # Face-person intersection threshold for matching.
 intersection_percentage_thresh = 0.9
 
 # Percentage of image area for detected object to be considered at 0.4 meters.
-close_detection_area_percentage = 1.0/3.0
+close_detection_area_percentage = 1.0 / 3.0
 
 # Detection/recognition thresholds.
 faces_recognition_threshold = 0.5
@@ -63,4 +64,16 @@ access_key = 'VAYDJDTZRU4644WDEK4Q6YVXLY47F7GC'
 GO_TO_INTENT = 'go to'
 FIND_INTENT = 'find'
 SAY_INTENT = 'say'
-intent_entities = {GO_TO_INTENT: 'destination', FIND_INTENT: 'target', SAY_INTENT: 'subject'}
+intent_entities = {GO_TO_INTENT: 'destination',
+				   FIND_INTENT: 'target',
+				   SAY_INTENT: 'subject'}
+
+# Association between subjects and presentations.
+presentations = Dict({'lab308': lab308,
+				 'lab303': lab303,
+				 'lab306': lab306,
+				 'robot': robot,
+				 'alex': alex,
+				 'stephanie': stephanie,
+				 'time': get_time,
+				 'default': default})

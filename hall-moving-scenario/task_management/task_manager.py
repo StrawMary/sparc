@@ -34,14 +34,17 @@ class TaskManager:
 			else:
 				self.create_tasks_say('Sorry I cannot do that!')
 		elif data['intent'] == cfg.SAY_INTENT:
-			self.create_tasks_say(data['entity'])
+			if data['entity'] in cfg.presentations:
+				self.create_tasks_say(cfg.presentations[data['entity']])
+			else:
+				self.create_tasks_say(cfg.presentations['default'])
 
 	def create_tasks_go(self, data):
 		if data and self.navigation_manager.is_located(data):
 			go_to_task = Task(type=TaskType.GO_TO,
-							priority=cfg.GO_TO_PRIOR,
-							label=data,
-							value=self.navigation_manager.get_coordinate_for_label(data))
+							  priority=cfg.GO_TO_PRIOR,
+							  label=data,
+							  value=self.navigation_manager.get_coordinate_for_label(data))
 			heapq.heappush(self.ongoing_tasks, (go_to_task.priority, go_to_task))
 			return True
 		return False
