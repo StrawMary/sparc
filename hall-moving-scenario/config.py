@@ -1,5 +1,6 @@
-from subject_presentations import *
+from predefined_possible_locations import *
 from std_msgs.msg import ColorRGBA
+from subject_presentations import *
 
 # Receive or send data to the robot
 robot_stream = False
@@ -40,11 +41,6 @@ objects_distance_threshold = 1.0
 # Show images and positions.
 debug_mode = True
 
-# Task priorities.
-GO_TO_PRIOR = 3
-FIND_PRIOR = 2
-SAY_PRIOR = 1
-
 # Map colors to display.
 person_color = ColorRGBA(0.0, 0.5, 0.5, 0.8)
 object_color = ColorRGBA(1.0, 1.0, 0.5, 0.8)
@@ -55,6 +51,11 @@ speech_catch_phrase = 'hey pepper'
 
 # Eyes fade duration.
 fade_duration = 1.0
+
+# Task priorities.
+GO_TO_PRIOR = 2
+FIND_PRIOR = 3
+SAY_PRIOR = 1
 
 # Wit.ai api params.
 URL = 'https://api.wit.ai/message'
@@ -69,11 +70,15 @@ intent_entities = {GO_TO_INTENT: 'destination',
 				   SAY_INTENT: 'subject'}
 
 # Association between subjects and presentations.
-presentations = Dict({'lab308': lab308,
-				 'lab303': lab303,
-				 'lab306': lab306,
-				 'robot': robot,
-				 'alex': alex,
-				 'stephanie': stephanie,
-				 'time': get_time,
-				 'default': default})
+presentations = Dict({'lab308': lab308_presentation,
+					  'lab303': lab303_presentation,
+					  'lab306': lab306_presentation,
+					  'robot': robot_presentation,
+					  'alex': alex_presentation,
+					  'stephanie': stephanie_presentation,
+					  'time': get_time_presentation,
+					  'default': default_presentation})
+
+# Predefined positions for 'find' intent.
+possible_locations = {'stephanie': stephanie_possible_locations,
+					  'alex': alex_possible_locations}

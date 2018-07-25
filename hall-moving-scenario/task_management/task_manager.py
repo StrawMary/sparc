@@ -2,7 +2,7 @@ import config as cfg
 import heapq
 
 from enum import Enum
-from navigation.navigation_manager import NavigationManager
+from navigation.navigation_manager import NavigationManager, ClassType, KNOWN_LABELS
 from robot_interaction.speech_recognition_subscriber import SpeechManager
 from task import Task
 
@@ -59,6 +59,17 @@ class TaskManager:
 		return False
 
 	def create_tasks_find(self, data):
+		if data and self.navigation_manager.is_located(data):
+			class_type = ClassType.PERSON
+			if data in KNOWN_LABELS:
+				class_type = ClassType.OBJECT
+			find_task = Task(type=TaskType.FIND_OBJECT,
+							 class_type=class_type,
+							 priority=cfg.FIND_PRIOR,
+							 label=data,
+							 value=self.navigation_manager.get_coordinate_for_label(data))
+			heapq.heappush(self.ongoing_tasks, (find_task.priority, find_task))
+			return True
 		return False
 
 	def get_next_task(self):

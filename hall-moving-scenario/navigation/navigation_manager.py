@@ -8,7 +8,7 @@ from copy import deepcopy
 from enum import Enum
 from geometry_msgs.msg import Point, Pose, PoseStamped, Vector3
 from scipy.spatial import distance
-from std_msgs.msg import Header, ColorRGBA
+from std_msgs.msg import Header
 from visualization_msgs.msg import Marker, MarkerArray
 
 from navigation.target import Target
@@ -54,9 +54,23 @@ class NavigationManager:
 	def is_located(self, key):
 		return key in self.encountered_positions
 
+	def get_closest_location(self, locations):
+		min_dist = 100000
+		closest_location = None
+		if cfg.robot_stream:
+			robot_last_pose = self.pepper_localization.get_pose()
+		else:
+			robot_last_pose = PoseStamped()
+		for location in locations:
+			dist = self.compute_euclidian_distance(robot_last_pose, location)
+			if dist < min_dist:
+				min_dist = dist
+				closest_location = location
+		return closest_location
+
 	def get_coordinate_for_label(self, key):
 		if key in self.encountered_positions:
-			return self.encountered_positions[key][1]
+			return self.get_closest_location(self.encountered_positions[key][1:])
 		else:
 			return None
 
@@ -109,7 +123,19 @@ class NavigationManager:
 		self.move_to_coordinate(task.value)
 
 	def run_task_find(self, task):
-		pass
+		if task.class_type == ClassType.OBJECT:
+			self.move_to_coordinate(task.value)
+			return True
+
+		possible_locations = [task.value]
+		if task.label in cfg.possible_locations:
+			possible_locations.extend(cfg.possible_locations[task.label])
+
+		for location in possible_locations:
+			self.move_to_coordinate(location)
+			# if found:
+			# 	return True
+		return False
 
 	def show(self, people_3d_positions, objects_3d_positions, qrcodes_3d_positions):
 		self.show_positions(people_3d_positions, 'people')
