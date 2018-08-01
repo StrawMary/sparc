@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/hall-moving-scenario.iml" filepath="$PROJECT_DIR$/.idea/hall-moving-scenario.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/external platform.iml" filepath="$PROJECT_DIR$/.idea/external platform.iml" />
     </modules>
   </component>
 </project>

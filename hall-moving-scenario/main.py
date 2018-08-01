@@ -1,7 +1,8 @@
 import sys
 naoqi_path = '/home/sparc-308/workspace/stefania/pynaoqi-python2.7/lib/python2.7/site-packages'
 sys.path.insert(0, naoqi_path)
-sys.path.append('/home/sparc-308/Desktop/final_integration/sparc/hall-moving-scenario')
+
+sys.path.append('/home/sparc-308/Desktop/final_integration/sparc/external_platform')
 
 import qi
 import config as cfg
