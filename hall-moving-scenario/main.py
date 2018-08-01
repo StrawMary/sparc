@@ -35,6 +35,8 @@ class Main(object):
 
 	def run(self):
 		print('Running...')
+		if cfg.robot_stream:
+			self.task_manager.pose_manager.stand_init()
 
 		try:
 			while self.vision_manager.is_running():

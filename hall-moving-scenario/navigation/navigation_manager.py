@@ -48,6 +48,9 @@ class NavigationManager:
 		return False
 
 	def move_to_coordinate(self, goal):
+		print(self.pepper_localization.get_pose())
+		print(goal)
+		print("--------------")
 		if cfg.robot_stream:
 			self.move_publisher.publish(goal)
 

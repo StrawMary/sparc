@@ -3,6 +3,7 @@ import heapq
 
 from enum import Enum
 from navigation.navigation_manager import NavigationManager, ClassType, KNOWN_LABELS
+from navigation.pose_manager import PepperPoseManager
 from robot_interaction.speech_recognition_subscriber import SpeechManager
 from task import Task
 
@@ -18,6 +19,7 @@ class TaskManager:
 		self.ongoing_tasks = []
 		self.speech_manager = SpeechManager(self.interpret_speech)
 		self.navigation_manager = NavigationManager()
+		self.pose_manager = PepperPoseManager()
 
 	def interpret_speech(self, data):
 		if not data:
