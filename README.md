@@ -33,6 +33,7 @@ On the Master PC:
 # How to use the speech recognition module
 Prerequisites:
 - Plug in the microphone inside the <b>external</b> audio card
+- Start roscore on the machine running the publisher or make sure you have set the ROS_MASTER_URI before
 
 On the machine you are running the speech recognition:
 - python speech_recognition_publisher.py
