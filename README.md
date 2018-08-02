@@ -11,7 +11,7 @@ Global repo that contains the other Pepper repos as submodules, as well as code 
 On the Master PC:
 - roscore
 
-On the RPi
+On the RPi:
 - SSH pi@<lidar_ip> (192.168.0.180)
   - If the IP doesn't work, please plug a monitor inside the RPi to find out the IP
 - check the open_lidar.sh script and ensure the IP matches the MASTER_IP (export ROS_MASTER_URI=http://<master_pc_ip>:11311)
@@ -29,6 +29,19 @@ On the Master PC:
 - If you want to use the saved map ./run_slam_saved.sh (Make sure that Pepper starts from the initial position)
 
 - rviz will start and you should see the map, laser scans and Pepper
+
+# How to run the navigation (move_base) module
+Prerequisites: 
+- Have the Hector_SLAM up and running
+
+On the Master PC:
+- Run ./run_navigation.sh 
+
+!The configuration files can be found in <catkin_ws>/src/pepper_sparc/nav_conf
+Most useful parameters:
+- costmap_common_params:
+  - robot_radius(0.4) = the estimated radius of the robot base
+  - inflation_radius(0.35) = the radius of the occupied cells in the grid
 
 # How to use the speech recognition module
 Prerequisites:
