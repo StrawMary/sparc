@@ -37,7 +37,8 @@ Prerequisites:
 On the Master PC:
 - Run ./run_navigation.sh 
 
-!The configuration files can be found in <catkin_ws>/src/pepper_sparc/nav_conf
+<i>The configuration files can be found in <catkin_ws>/src/pepper_sparc/nav_conf</i>
+
 Most useful parameters:
 - costmap_common_params:
   - robot_radius(0.4) = the estimated radius of the robot base
