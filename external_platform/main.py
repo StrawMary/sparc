@@ -9,6 +9,7 @@ import config as cfg
 import rospy
 import signal
 import traceback
+import time
 
 from task_management.task_manager import TaskManager
 from vision.vision_manager import VisionManager
@@ -21,7 +22,7 @@ class Main(object):
 
 		if cfg.robot_stream:
 			app.start()
-			rospy.init_node('listener', anonymous=True)
+		rospy.init_node('listener', anonymous=True)
 
 		super(Main, self).__init__()
 
@@ -41,9 +42,20 @@ class Main(object):
 
 		try:
 			while self.vision_manager.is_running():
+				if cfg.debug_mode:
+					start_time = time.time()
 				people_3d_positions, objects_3d_positions, qrcodes_3d_positions = self.vision_manager.detect()
+				if cfg.debug_mode:
+					vision_time = time.time()
+					print("--- vision %s seconds ---" % (vision_time - start_time))
 				self.task_manager.navigation_manager.show(people_3d_positions, objects_3d_positions, qrcodes_3d_positions)
+				if cfg.debug_mode:
+					display_time = time.time()
+					print("--- rviz display %s seconds ---" % (display_time - vision_time))
 				self.task_manager.step()
+				if cfg.debug_mode:
+					print("--- task execution %s seconds ---" % (time.time() - display_time))
+					print("\n")
 			self.terminate()
 
 		except KeyboardInterrupt:

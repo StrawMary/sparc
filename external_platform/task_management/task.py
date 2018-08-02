@@ -19,7 +19,7 @@ class Task:
         return self.done
 
     def stringify(self):
-        return '\n%s: \tID: %d \tPrior: %d \tClass: %s \tLabel: %s \tValue: %s \tCoords: (%.2f, %.2f, %.2f)' % \
+        return '\n%s: \tID: %d \tPrior: %d \tClass: %s \tLabel: %s \tValue: %s' % \
             ((self.type,)+(self.id,)+(self.priority,)+(self.class_type,)+(self.label,)+(self.value,))
 
     def __str__(self):

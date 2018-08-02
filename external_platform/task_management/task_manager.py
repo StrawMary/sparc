@@ -25,6 +25,8 @@ class TaskManager:
 		if not data:
 			return
 
+		print(data)
+
 		if data['intent'] == cfg.GO_TO_INTENT:
 			if self.create_tasks_go(data['entity']):
 				self.create_tasks_say('Going to ' + data['entity'])
@@ -85,6 +87,7 @@ class TaskManager:
 			self.execute_task(task)
 
 	def execute_task(self, task):
+		print("Executing task: " + str(task))
 		if task.type == TaskType.GO_TO:
 			self.navigation_manager.run_task_go_to(task)
 		elif task.type == TaskType.SAY_SOMETHING:

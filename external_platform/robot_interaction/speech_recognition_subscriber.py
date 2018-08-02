@@ -1,4 +1,5 @@
 import config as cfg
+import json
 import rospy
 import requests
 
@@ -18,28 +19,33 @@ class SpeechManager:
 		if self.robot_stream:
 			self.leds_service = ALProxy("ALLeds", cfg.ip, cfg.port)
 			self.speech_service = ALProxy("ALTextToSpeech", cfg.ip, cfg.port)
-			rospy.Subscriber('speech_text', String, self.callback)
+		rospy.Subscriber('speech_text', String, self.callback)
 
 	def run(self):
 		if self.robot_stream:
 			rospy.spin()
 
 	def run_task_say(self, task):
-		self.speech_service.say(task.value, "English")
+		if self.robot_stream:
+			self.speech_service.say(str(task.value), "English")
 
 	def activate(self):
 		self.activated = True
-		self.leds_service.fadeRGB('FaceLeds', 'green', self.fade_duration)
+
+		if self.robot_stream:
+			self.leds_service.fadeRGB('FaceLeds', 'green', self.fade_duration)
 
 	def deactivate(self):
 		self.activated = False
-		self.leds_service.fadeRGB('FaceLeds', "white", self.fade_duration)
 
-	def interpret(self, text):
+		if self.robot_stream:
+			self.leds_service.fadeRGB('FaceLeds', "white", self.fade_duration)
+
+	def interpret(self, text, language='en-EN'):
 		if not text:
 			return None
 
-		params = {'access_token': cfg.access_key, 'q': text}
+		params = {'access_token': cfg.access_keys[language], 'q': text}
 		response = requests.get(url=cfg.URL, params=params).json()
 		if 'entities' not in response:
 			print('API server error: ' + str(response))
@@ -57,14 +63,17 @@ class SpeechManager:
 		return {'intent': intent['value'], 'entity': entity['value']}
 
 	def callback(self, data):
-		text = data.data.strip().lower()
-		print('Recognized speech: ' + text)
+		data = json.loads(data.data)
+		if not data['text']:
+			return
+		text = data['text'].strip().lower()
+		language = data['language']
 
 		if text == self.catch_phrase:
 			self.activate()
 			return
 
-		interpreted_speech = self.interpret(text)
+		interpreted_speech = self.interpret(text, language)
 		self.task_m(interpreted_speech)
 
 		if self.activated:

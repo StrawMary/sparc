@@ -295,6 +295,9 @@ def create_mtcnn(sess, model_path):
     onet_fun = lambda img : sess.run(('onet/conv6-2/conv6-2:0', 'onet/conv6-3/conv6-3:0', 'onet/prob1:0'), feed_dict={'onet/input:0':img})
     return pnet_fun, rnet_fun, onet_fun
 
+def detect_face_simple(img):
+    pass
+
 def detect_face(img, minsize, pnet, rnet, onet, threshold, factor):
     # im: input image
     # minsize: minimum of faces' size

@@ -1,9 +1,14 @@
+import json
 import rospy
 import speech_recognition as sr
 import traceback
 from std_msgs.msg import String
 
 api_key = '026f72c808604bbeabaf4af3f9339334'
+language_en = 'en-EN'
+language_ro = 'ro-RO'
+
+language = language_ro
 
 
 class SpeechRecognizer:
@@ -16,10 +21,13 @@ class SpeechRecognizer:
 		rospy.init_node('talker', anonymous=True)
 		self.rate = rospy.Rate(10)
 
+		print('Used language for recognition: ' + language)
+
 	def recognize_speech(self):
 		response = {
 			'text': None,
 			'error': None,
+			'language': language
 		}
 
 		with self.microphone as source:
@@ -27,7 +35,7 @@ class SpeechRecognizer:
 			audio = self.engine.listen(source)
 
 		try:
-			response['text'] = self.engine.recognize_bing(audio, key=api_key)
+			response['text'] = self.engine.recognize_google(audio, language=language)
 		except sr.RequestError:
 			response['error'] = 'API unavailable'
 		except sr.UnknownValueError:
@@ -40,7 +48,7 @@ class SpeechRecognizer:
 			while not rospy.is_shutdown():
 				speech = self.recognize_speech()
 				print(speech)
-				self.publisher.publish(str(speech['text']))
+				self.publisher.publish(json.dumps(speech))
 				self.rate.sleep()
 
 		except KeyboardInterrupt:

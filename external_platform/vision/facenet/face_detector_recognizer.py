@@ -27,6 +27,8 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 class FaceNetDetector:
     def __init__(self, confidence_threshold=cfg.faces_recognition_threshold):
         print('Loading facenet model...')
+        self.face_cascade = cv2.CascadeClassifier(os.path.join(folder_path, 'classifier/face_cascade_default.xml'))
+
         with tf.Graph().as_default():
             gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.6)
             self.sess = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options, log_device_placement=False))
@@ -59,20 +61,35 @@ class FaceNetDetector:
                     (self.model, class_names) = pickle.load(infile)
         print('Loaded model succeded.')
 
+    def detect_face(self, frame):
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        faces = self.face_cascade.detectMultiScale(gray, 1.3, 5)
+
+        # Convert to (left, top, right, bottom)
+        final_faces = []
+        for (x, y, w, h) in faces:
+            final_faces.append((x,y,x+w,y+h, 1))
+
+        return final_faces
+
     def detect(self, frame):
         result = []
+
+        start_time = time.time()
+
+        bboxes = self.detect_face(frame)
 
         if frame.ndim == 2:
                 frame = facenet.to_rgb(frame)
         frame = frame[:, :, 0:3]
 
-        detections, _ = detect_face.detect_face(frame, self.minsize, self.pnet, self.rnet, self.onet, self.threshold, self.factor)
-        bboxes = detections[:, 0:4]
+        if cfg.debug_mode:
+            detection_time = time.time()
+            print("\t\t\t detection %s" % (detection_time - start_time))
 
-        for i in range(detections.shape[0]):
+        for bbox in bboxes:
             emb_array = np.zeros((1, self.embedding_size))
 
-            bbox = np.int_(bboxes[i])
             if bbox[0] <= 0 or bbox[1] <= 0 or bbox[2] >= len(frame[0]) or bbox[3] >= len(frame):
                 continue
 
@@ -93,6 +110,9 @@ class FaceNetDetector:
                 result.append(([bbox[0], bbox[1], bbox[2], bbox[3]], self.people_names[class_index], confidence))
             else:
                 result.append(([bbox[0], bbox[1], bbox[2], bbox[3]], cfg.unknown_name, confidence))
+
+        if cfg.debug_mode:
+            print("\t\t\t recognition %s" % (time.time() - detection_time))
 
         return result
 
