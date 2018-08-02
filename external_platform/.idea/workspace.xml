@@ -2,21 +2,14 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="e14e6b27-43ed-41ad-8135-037ed898f223" name="Default" comment="">
-      <change type="NEW" beforePath="" afterPath="$PROJECT_DIR$/vision/facenet/classifier/face_cascade_default.xml" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/../master_catkin_ws/src/common_msgs" afterPath="$PROJECT_DIR$/../master_catkin_ws/src/common_msgs" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/../master_catkin_ws/src/pepper_robot" afterPath="$PROJECT_DIR$/../master_catkin_ws/src/pepper_robot" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/config.py" afterPath="$PROJECT_DIR$/config.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/main.py" afterPath="$PROJECT_DIR$/main.py" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/navigation/navigation_manager.py" afterPath="$PROJECT_DIR$/navigation/navigation_manager.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/robot_interaction/speech_recognition_publisher.py" afterPath="$PROJECT_DIR$/robot_interaction/speech_recognition_publisher.py" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/robot_interaction/speech_recognition_subscriber.py" afterPath="$PROJECT_DIR$/robot_interaction/speech_recognition_subscriber.py" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/task_management/task.py" afterPath="$PROJECT_DIR$/task_management/task.py" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/task_management/task_manager.py" afterPath="$PROJECT_DIR$/task_management/task_manager.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/vision/data_processor.py" afterPath="$PROJECT_DIR$/vision/data_processor.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/vision/facenet/detect_face.py" afterPath="$PROJECT_DIR$/vision/facenet/detect_face.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/vision/facenet/face_detector_recognizer.py" afterPath="$PROJECT_DIR$/vision/facenet/face_detector_recognizer.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/vision/vision_manager.py" afterPath="$PROJECT_DIR$/vision/vision_manager.py" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="TRACKING_ENABLED" value="true" />
@@ -37,14 +30,32 @@
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="navigation_manager.py" pinned="false" current-in-tab="true">
+      <file leaf-file-name="navigation_manager.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/navigation/navigation_manager.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="380">
-              <caret line="43" column="0" lean-forward="true" selection-start-line="43" selection-start-column="0" selection-end-line="43" selection-end-column="0" />
-              <folding>
-                <element signature="e#0#20#0" expanded="true" />
-              </folding>
+            <state relative-caret-position="-600">
+              <caret line="12" column="31" lean-forward="true" selection-start-line="12" selection-start-column="31" selection-end-line="12" selection-end-column="31" />
+              <folding />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file leaf-file-name="task_manager.py" pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/task_management/task_manager.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="80">
+              <caret line="11" column="13" lean-forward="true" selection-start-line="11" selection-start-column="13" selection-end-line="11" selection-end-column="13" />
+              <folding />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file leaf-file-name="task.py" pinned="false" current-in-tab="true">
+        <entry file="file://$PROJECT_DIR$/task_management/task.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="20">
+              <caret line="1" column="0" lean-forward="true" selection-start-line="1" selection-start-column="0" selection-end-line="1" selection-end-column="0" />
+              <folding />
             </state>
           </provider>
         </entry>
@@ -52,8 +63,8 @@
       <file leaf-file-name="vision_manager.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/vision/vision_manager.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="338">
-              <caret line="134" column="29" lean-forward="false" selection-start-line="134" selection-start-column="29" selection-end-line="134" selection-end-column="29" />
+            <state relative-caret-position="318">
+              <caret line="133" column="0" lean-forward="true" selection-start-line="133" selection-start-column="0" selection-end-line="133" selection-end-column="0" />
               <folding />
             </state>
           </provider>
@@ -62,8 +73,8 @@
       <file leaf-file-name="speech_recognition_subscriber.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/robot_interaction/speech_recognition_subscriber.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="-720">
-              <caret line="21" column="46" lean-forward="true" selection-start-line="21" selection-start-column="46" selection-end-line="21" selection-end-column="61" />
+            <state relative-caret-position="280">
+              <caret line="74" column="62" lean-forward="false" selection-start-line="74" selection-start-column="44" selection-end-line="74" selection-end-column="62" />
               <folding>
                 <element signature="e#0#20#0" expanded="true" />
               </folding>
@@ -74,8 +85,8 @@
       <file leaf-file-name="config.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/config.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="100">
-              <caret line="5" column="19" lean-forward="false" selection-start-line="5" selection-start-column="19" selection-end-line="5" selection-end-column="19" />
+            <state relative-caret-position="293">
+              <caret line="68" column="18" lean-forward="true" selection-start-line="68" selection-start-column="18" selection-end-line="68" selection-end-column="18" />
               <folding>
                 <element signature="e#0#43#0" expanded="true" />
               </folding>
@@ -94,7 +105,6 @@
   </component>
   <component name="FindInProjectRecents">
     <findStrings>
-      <find>show_on_map_tasks</find>
       <find>try:</find>
       <find>run</find>
       <find>subprocess</find>
@@ -124,6 +134,7 @@
       <find>SpeechManager</find>
       <find>print</find>
       <find>.parse</find>
+      <find>.say</find>
     </findStrings>
     <replaceStrings>
       <replace>\t</replace>
@@ -150,8 +161,6 @@
         <option value="$PROJECT_DIR$/navigation/robot_localization.py" />
         <option value="$PROJECT_DIR$/navigation/target.py" />
         <option value="$PROJECT_DIR$/vision/yolo2/people_detector.py" />
-        <option value="$PROJECT_DIR$/task_management/task.py" />
-        <option value="$PROJECT_DIR$/task_management/task_manager.py" />
         <option value="$PROJECT_DIR$/vision/data_processor.py" />
         <option value="$PROJECT_DIR$/vision/facenet/detect_face.py" />
         <option value="$PROJECT_DIR$/vision/facenet/classifier/face_cascade_default.xml" />
@@ -159,10 +168,12 @@
         <option value="$PROJECT_DIR$/robot_interaction/speech_recognition_publisher.py" />
         <option value="$PROJECT_DIR$/main.py" />
         <option value="$PROJECT_DIR$/vision/facenet/face_detector_recognizer.py" />
-        <option value="$PROJECT_DIR$/robot_interaction/speech_recognition_subscriber.py" />
-        <option value="$PROJECT_DIR$/navigation/navigation_manager.py" />
         <option value="$PROJECT_DIR$/vision/vision_manager.py" />
+        <option value="$PROJECT_DIR$/navigation/navigation_manager.py" />
         <option value="$PROJECT_DIR$/config.py" />
+        <option value="$PROJECT_DIR$/robot_interaction/speech_recognition_subscriber.py" />
+        <option value="$PROJECT_DIR$/task_management/task.py" />
+        <option value="$PROJECT_DIR$/task_management/task_manager.py" />
       </list>
     </option>
   </component>
@@ -548,14 +559,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/task_management/task.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="420">
-          <caret line="21" column="78" lean-forward="false" selection-start-line="21" selection-start-column="78" selection-end-line="21" selection-end-column="78" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/predefined_possible_locations.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="0">
@@ -614,14 +617,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/task_management/task_manager.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="613">
-          <caret line="83" column="19" lean-forward="false" selection-start-line="83" selection-start-column="19" selection-end-line="83" selection-end-column="19" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/vision/facenet/face_detector_recognizer.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="540">
@@ -638,41 +633,55 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/robot_interaction/speech_recognition_subscriber.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="-720">
-          <caret line="21" column="46" lean-forward="true" selection-start-line="21" selection-start-column="46" selection-end-line="21" selection-end-column="61" />
-          <folding>
-            <element signature="e#0#20#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/vision/vision_manager.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="338">
-          <caret line="134" column="29" lean-forward="false" selection-start-line="134" selection-start-column="29" selection-end-line="134" selection-end-column="29" />
+        <state relative-caret-position="318">
+          <caret line="133" column="0" lean-forward="true" selection-start-line="133" selection-start-column="0" selection-end-line="133" selection-end-column="0" />
           <folding />
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/config.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="100">
-          <caret line="5" column="19" lean-forward="false" selection-start-line="5" selection-start-column="19" selection-end-line="5" selection-end-column="19" />
+        <state relative-caret-position="293">
+          <caret line="68" column="18" lean-forward="true" selection-start-line="68" selection-start-column="18" selection-end-line="68" selection-end-column="18" />
           <folding>
             <element signature="e#0#43#0" expanded="true" />
           </folding>
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/navigation/navigation_manager.py">
+    <entry file="file://$PROJECT_DIR$/robot_interaction/speech_recognition_subscriber.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="380">
-          <caret line="43" column="0" lean-forward="true" selection-start-line="43" selection-start-column="0" selection-end-line="43" selection-end-column="0" />
+        <state relative-caret-position="280">
+          <caret line="74" column="62" lean-forward="false" selection-start-line="74" selection-start-column="44" selection-end-line="74" selection-end-column="62" />
           <folding>
             <element signature="e#0#20#0" expanded="true" />
           </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/navigation/navigation_manager.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="-600">
+          <caret line="12" column="31" lean-forward="true" selection-start-line="12" selection-start-column="31" selection-end-line="12" selection-end-column="31" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/task_management/task_manager.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="80">
+          <caret line="11" column="13" lean-forward="true" selection-start-line="11" selection-start-column="13" selection-end-line="11" selection-end-column="13" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/task_management/task.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="20">
+          <caret line="1" column="0" lean-forward="true" selection-start-line="1" selection-start-column="0" selection-end-line="1" selection-end-column="0" />
+          <folding />
         </state>
       </provider>
     </entry>

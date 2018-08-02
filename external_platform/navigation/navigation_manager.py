@@ -4,11 +4,11 @@ import tf
 import tf2_ros
 import time
 
-from actionlib_msgs.msg import GoalStatusArray
+from actionlib_msgs.msg import GoalStatusArray, GoalID
 from copy import deepcopy
 from enum import Enum
 from geometry_msgs.msg import Point, Pose, PoseStamped, Vector3
-from move_base_msgs.msg import MoveBaseActionFeedback
+from move_base_msgs.msg import MoveBaseActionFeedback, MoveBaseActionResult
 from scipy.spatial import distance
 from std_msgs.msg import Header
 from visualization_msgs.msg import Marker, MarkerArray
@@ -33,35 +33,48 @@ class NavigationManager:
 		if cfg.robot_stream:
 			self.marker_array_publisher = rospy.Publisher('/detections', MarkerArray, queue_size=100)
 			self.move_publisher = rospy.Publisher('/move_base_simple/goal', PoseStamped, queue_size=10)
-			self.status_subscriber = rospy.Subscriber('/move_base/status', GoalStatusArray, self.get_move_status)
-			self.status_subscriber = rospy.Subscriber('/move_base/feedback', MoveBaseActionFeedback, self.get_move_feedback)
+
+			self.cancel_publisher = rospy.Publisher('/move_base/cancel', GoalID, queue_size=10)
+			self.feedback_subscriber = rospy.Subscriber('/move_base/feedback', MoveBaseActionFeedback, self.get_move_feedback)
+			self.result_subscriber = rospy.Subscriber('/move_base/result', MoveBaseActionResult, self.get_move_action_result)
+			self.status_subscriber = rospy.Subscriber('/move_base/status', GoalStatusArray, self.get_move_action_status)
+
 		self.map_pose = None
 		self.object_ID = 0
 		self.encountered_positions = {}
 		self.possible_goals = []
-		self.move_completed = True
+		self.on_move_completed = None
 		self.listener = tf.TransformListener()
+		self.goal_ids = []
+		self.move_action_feedback = None
 
-	def get_move_status(self, data):
-		print('Move status: ' + str(data))
+	def get_move_action_status(self, data):
+		if data:
+			for status in data.status_list:
+				self.goal_ids.append(status.goal_id)
+
+	def get_move_action_result(self, data):
+		if self.on_move_completed:
+			if data.status.status == 4:
+				self.on_move_completed(False)
+			else:
+				self.on_move_completed(True)
 
 	def get_move_feedback(self, data):
-		print('Move feedback: ' + str(data))
+		self.move_action_feedback = data
 
 	def add_new_possible_goal(self, goal):
 		self.possible_goals.append(goal)
 
-	def move_to_goal(self, key):
-		goal = self.possible_goals[key]
-		if goal in self.encountered_positions:
-			self.move_to_coordinate(self.encountered_positions[goal][1])
-			return True
-		return False
-
-	def move_to_coordinate(self, goal):
+	def move_to_coordinate(self, goal, on_move_completed=None):
 		if cfg.robot_stream:
-			self.move_completed = False
 			self.move_publisher.publish(goal)
+			self.on_move_completed = on_move_completed
+
+	def stop_movement(self):
+		for goal_id in self.goal_ids:
+			self.cancel_publisher.publish(goal_id)
+		self.goal_ids = []
 
 	def is_located(self, key):
 		return key in self.encountered_positions
@@ -90,13 +103,6 @@ class NavigationManager:
 			return self.get_closest_location(self.encountered_positions[key][1:])
 		else:
 			return None
-
-	def move_to_map_pose(self):
-		if self.map_pose:
-			self.move_to_coordinate(self.map_pose)
-			return True
-		else:
-			return False
 
 	def compute_euclidian_distance(self, p1, p2):
 		a = (p1.x, p1.y, p1.z)
@@ -136,12 +142,12 @@ class NavigationManager:
 
 		self.show_targets(targets)
 
-	def run_task_go_to(self, task):
-		self.move_to_coordinate(task.value)
+	def run_task_go_to(self, task, on_move_completed):
+		self.move_to_coordinate(task.value, on_move_completed)
 
-	def run_task_find(self, task):
+	def run_task_find(self, task, on_move_completed):
 		if task.class_type == ClassType.OBJECT:
-			self.move_to_coordinate(task.value)
+			self.move_to_coordinate(task.value, on_move_completed)
 			return True
 
 		possible_locations = [task.value]
@@ -149,7 +155,7 @@ class NavigationManager:
 			possible_locations.extend(cfg.possible_locations[task.label])
 
 		for location in possible_locations:
-			self.move_to_coordinate(location)
+			self.move_to_coordinate(location, on_move_completed)
 			# if found:
 			# 	return True
 		return False

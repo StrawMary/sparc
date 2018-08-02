@@ -11,12 +11,8 @@ class Task:
         self.class_type = class_type
         self.label = label
         self.value = value
-        self.done = False
 
         TASK_NO += 1
-
-    def is_done(self):
-        return self.done
 
     def stringify(self):
         return '\n%s: \tID: %d \tPrior: %d \tClass: %s \tLabel: %s \tValue: %s' % \

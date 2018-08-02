@@ -29,6 +29,9 @@ class SpeechManager:
 		if self.robot_stream:
 			self.speech_service.say(str(task.value), "English")
 
+	def stop(self):
+		self.speech_service.stopAll()
+
 	def activate(self):
 		self.activated = True
 
@@ -47,20 +50,50 @@ class SpeechManager:
 
 		params = {'access_token': cfg.access_keys[language], 'q': text}
 		response = requests.get(url=cfg.URL, params=params).json()
+
+		# Entities should contain "intent", "target"(optional).
 		if 'entities' not in response:
 			print('API server error: ' + str(response))
 			return None
-		entities = response['entities']
-		if len(entities.keys()) < 2 or 'intent' not in entities or len(entities['intent']) == 0:
-			print('Cannot interpret speech.')
-			return None
-		intent = entities['intent'][0]
-		if cfg.intent_entities[intent['value']] not in entities or len(cfg.intent_entities[intent['value']]) == 0:
-			print('Missing intent entity.')
-			return None
-		entity = entities[cfg.intent_entities[intent['value']]][0]
 
-		return {'intent': intent['value'], 'entity': entity['value']}
+		# Check that entities contain an intent.
+		entities = response['entities']
+		if 'intent' not in entities or len(entities['intent']) == 0:
+			print('No intent found.')
+			return None
+
+		intent = entities['intent'][0]
+
+		# Check that we have the mandatory entities to create a task.
+		if not self.check_mandatory_entities(cfg.mandatory_intent_entities[intent['value']], entities):
+			print('Missing required entity.')
+			return None
+
+		mandatory_entities = self.get_mandatory_entities(cfg.mandatory_intent_entities[intent['value']], entities)
+		optional_entities = self.get_optional_entities(cfg.mandatory_intent_entities[intent['value']], entities)
+
+		return {'intent': intent['value'], 'mandatory_entities': mandatory_entities, 'optional_entities': optional_entities}
+
+	def check_mandatory_entities(self, mandatory_entities, received_entities):
+		for entity in mandatory_entities:
+			if entity not in received_entities:
+				return False
+		return True
+
+	def get_mandatory_entities(self, mandatory_entities, received_entities):
+		entities = []
+		for mandatory_entity in mandatory_entities:
+			for received_entity in received_entities[mandatory_entity]:
+				entities.append(received_entity['value'])
+		return entities
+
+	def get_optional_entities(self, mandatory_entities, received_entities):
+		entities = []
+		for received_entity in received_entities.keys():
+			if received_entity not in mandatory_entities and received_entity != 'intent':
+				for entity in received_entities[received_entity]:
+					entities.append(entity['value'])
+		return entities
 
 	def callback(self, data):
 		data = json.loads(data.data)

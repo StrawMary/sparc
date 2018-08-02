@@ -8,7 +8,7 @@ send_data = False
 
 # Show images and positions.
 debug_mode = False
-show_markers = False
+show_markers = True
 display_images = True
 
 # Robot IP information.
@@ -67,9 +67,12 @@ access_keys = {'en-EN':  'VAYDJDTZRU4644WDEK4Q6YVXLY47F7GC', 'ro-RO': 'AOWWWDRYJ
 GO_TO_INTENT = 'go to'
 FIND_INTENT = 'find'
 SAY_INTENT = 'say'
-intent_entities = {GO_TO_INTENT: 'target',
-				   FIND_INTENT: 'target',
-				   SAY_INTENT: 'target'}
+STOP_INTENT = 'stop'
+
+mandatory_intent_entities = {GO_TO_INTENT: ['target'],
+							 FIND_INTENT: ['target'],
+							 SAY_INTENT: ['target'],
+							 STOP_INTENT: []}
 
 # Association between subjects and presentations.
 presentations = Dict({'lab308': lab308_presentation,

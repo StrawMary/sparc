@@ -20,28 +20,41 @@ class TaskManager:
 		self.speech_manager = SpeechManager(self.interpret_speech)
 		self.navigation_manager = NavigationManager()
 		self.pose_manager = PepperPoseManager()
+		self.current_task = None
 
 	def interpret_speech(self, data):
 		if not data:
 			return
 
-		print(data)
-
 		if data['intent'] == cfg.GO_TO_INTENT:
-			if self.create_tasks_go(data['entity']):
-				self.create_tasks_say('Going to ' + data['entity'])
+			if self.create_tasks_go(data['mandatory_entities'][0]):
+				self.create_tasks_say('Going to ' + data['mandatory_entities'][0])
 			else:
 				self.create_tasks_say('Sorry I cannot do that!')
 		elif data['intent'] == cfg.FIND_INTENT:
-			if self.create_tasks_find(data['entity']):
-				self.create_tasks_say('Finding ' + data['entity'])
+			if self.create_tasks_find(data['mandatory_entities'][0]):
+				self.create_tasks_say('Finding ' + data['mandatory_entities'][0])
 			else:
 				self.create_tasks_say('Sorry I cannot do that!')
 		elif data['intent'] == cfg.SAY_INTENT:
-			if data['entity'] in cfg.presentations:
-				self.create_tasks_say(cfg.presentations[data['entity']])
+			if data['mandatory_entities'][0] in cfg.presentations:
+				self.create_tasks_say(cfg.presentations[data['mandatory_entities'][0]])
 			else:
 				self.create_tasks_say(cfg.presentations['default'])
+		elif data['intent'] == cfg.STOP_INTENT:
+			self.stop_current_task()
+	
+	def stop_current_task(self):
+		if self.current_task:
+			if self.current_task.type == TaskType.GO_TO:
+				self.navigation_manager.stop_movement()
+			elif self.current_task.type == TaskType.SAY_SOMETHING:
+				self.speech_manager.stop()
+			elif self.current_task.type == TaskType.FIND_OBJECT:
+				#TODO clear the list of positions we want to reach
+				self.navigation_manager.stop_movement()
+
+			self.current_task = None
 
 	def create_tasks_go(self, data):
 		if data and self.navigation_manager.is_located(data):
@@ -84,13 +97,28 @@ class TaskManager:
 	def step(self):
 		prior, task = self.get_next_task()
 		if task:
-			self.execute_task(task)
+			self.current_task = task
+			self.execute_task(self.current_task)
 
 	def execute_task(self, task):
 		print("Executing task: " + str(task))
 		if task.type == TaskType.GO_TO:
-			self.navigation_manager.run_task_go_to(task)
+			self.navigation_manager.run_task_go_to(task, self.move_completed)
 		elif task.type == TaskType.SAY_SOMETHING:
 			self.speech_manager.run_task_say(task)
 		elif task.type == TaskType.FIND_OBJECT:
-			self.navigation_manager.run_task_find(task)
+			self.navigation_manager.run_task_find(task, self.move_completed)
+
+	def say_completed(self):
+		self.current_task = None
+
+	def move_completed(self, success):
+		if success:
+			self.create_tasks_say("Here you go.")
+		else:
+			self.create_tasks_say("Sorry I cannot move there.")
+
+		if self.current_task:
+			if self.current_task.type == TaskType.GO_TO:
+				self.current_task = None
+		#TODO Make sure that the find task is completed (The final destination has been reached)
