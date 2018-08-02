@@ -35,6 +35,7 @@ Prerequisites:
 - Have the Hector_SLAM up and running
 
 On the Master PC:
+- cd /home//catkin_ws
 - Run ./run_navigation.sh 
 
 <i>The configuration files can be found in <catkin_ws>/src/pepper_sparc/nav_conf</i>
