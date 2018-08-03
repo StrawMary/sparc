@@ -1,25 +1,45 @@
-TASK_NO = 1
+from task_management.i_task import ITask, TaskStatus
 
 
-class Task:
-    def __init__(self, type, priority=3, class_type='', label='', value=''):
-        global TASK_NO
+class MoveToTask(ITask):
+    def __init__(self, run_method, stop_method, success_child, fail_child, add_to_queue_method, priority, target):
+        ITask.__init__(self, run_method, stop_method, success_child, fail_child, add_to_queue_method, priority)
+        self.target = target
 
-        self.id = TASK_NO
-        self.type = type
-        self.priority = priority
-        self.class_type = class_type
-        self.label = label
-        self.value = value
-
-        TASK_NO += 1
+    def run(self):
+        self.status = TaskStatus.RUNNING
+        self.run_method(self.target, self.on_success, self.on_fail)
 
     def stringify(self):
-        return '\n%s: \tID: %d \tPrior: %d \tClass: %s \tLabel: %s \tValue: %s' % \
-            ((self.type,)+(self.id,)+(self.priority,)+(self.class_type,)+(self.label,)+(self.value,))
+        if self.target:
+            position = self.target.pose.position
+            position = '(%.2f %.2f %.2f)' % (position.x, position.y, position.z)
+        else:
+            position = 'none'
+        return '\n%s: \tPrior: %d \tStatus: %s \tTarget: %s' % (self.__class__.__name__, self.priority, str(self.status), position)
 
-    def __str__(self):
-        return self.stringify()
 
-    def __repr__(self):
-        return self.__str__()
+class SayTask(ITask):
+    def __init__(self, run_method, stop_method, success_child, fail_child, add_to_queue_method, priority, text):
+        ITask.__init__(self, run_method, stop_method, success_child, fail_child, add_to_queue_method, priority)
+        self.text = text
+
+    def run(self):
+        self.status = TaskStatus.RUNNING
+        self.run_method(self.text, self.on_success, self.on_fail)
+
+    def stringify(self):
+        return '\n%s: \tPrior: %d \tStatus: %s \tText: %s' % (self.__class__.__name__, self.priority, str(self.status), self.text[:20])
+
+
+class ShowRemindersTask(ITask):
+    def __init__(self, run_method, stop_method, success_child, fail_child, add_to_queue_method, priority, url):
+        ITask.__init__(self, run_method, stop_method, success_child, fail_child, add_to_queue_method, priority)
+        self.url = url
+
+    def run(self):
+        self.status = TaskStatus.RUNNING
+        self.run_method(self.url, self.on_success, self.on_fail)
+
+    def stringify(self):
+        return '\n%s: \tPrior: %d \tStatus: %s \tURL: %s' % (self.__class__.__name__, self.priority, str(self.status), self.url)

@@ -43,7 +43,8 @@ class NavigationManager:
 		self.object_ID = 0
 		self.encountered_positions = {}
 		self.possible_goals = []
-		self.on_move_completed = None
+		self.on_success = None
+		self.on_fail = None
 		self.listener = tf.TransformListener()
 		self.goal_ids = []
 		self.move_action_feedback = None
@@ -54,11 +55,17 @@ class NavigationManager:
 				self.goal_ids.append(status.goal_id)
 
 	def get_move_action_result(self, data):
-		if self.on_move_completed:
-			if data.status.status == 4:
-				self.on_move_completed(False)
-			else:
-				self.on_move_completed(True)
+		if self.on_success:
+			if data.status.status != 2:  # Goal canceled.
+				if data.status.status == 3:  # Move completed.
+					self.on_success()
+				else:
+					self.on_fail()
+			self.clear_move_attrs()
+
+	def clear_move_attrs(self):
+		self.on_success = None
+		self.on_fail = None
 
 	def get_move_feedback(self, data):
 		self.move_action_feedback = data
@@ -66,10 +73,11 @@ class NavigationManager:
 	def add_new_possible_goal(self, goal):
 		self.possible_goals.append(goal)
 
-	def move_to_coordinate(self, goal, on_move_completed=None):
+	def move_to_coordinate(self, goal, on_success=None, on_fail=None):
 		if cfg.robot_stream:
 			self.move_publisher.publish(goal)
-			self.on_move_completed = on_move_completed
+			self.on_success = on_success
+			self.on_fail = on_fail
 
 	def stop_movement(self):
 		for goal_id in self.goal_ids:
@@ -142,24 +150,6 @@ class NavigationManager:
 
 		self.show_targets(targets)
 
-	def run_task_go_to(self, task, on_move_completed):
-		self.move_to_coordinate(task.value, on_move_completed)
-
-	def run_task_find(self, task, on_move_completed):
-		if task.class_type == ClassType.OBJECT:
-			self.move_to_coordinate(task.value, on_move_completed)
-			return True
-
-		possible_locations = [task.value]
-		if task.label in cfg.possible_locations:
-			possible_locations.extend(cfg.possible_locations[task.label])
-
-		for location in possible_locations:
-			self.move_to_coordinate(location, on_move_completed)
-			# if found:
-			# 	return True
-		return False
-
 	def show(self, people_3d_positions, objects_3d_positions, qrcodes_3d_positions):
 		if cfg.debug_mode:
 			start_time = time.time()
@@ -171,7 +161,9 @@ class NavigationManager:
 		if cfg.debug_mode:
 			show_time = time.time()
 			print("\t markers - %s seconds" % (show_time - start_time))
+		if cfg.show_markers:
 			self.publish_positions()
+		if cfg.debug_mode:
 			print("\t publish - %s seconds" % (time.time() - show_time))
 
 	def publish_positions(self):

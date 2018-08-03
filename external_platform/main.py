@@ -17,11 +17,12 @@ from vision.vision_manager import VisionManager
 
 class Main(object):
 	def __init__(self, app):
-		self.vision_manager = VisionManager()
-		self.task_manager = TaskManager()
-
 		if cfg.robot_stream:
 			app.start()
+
+		self.vision_manager = VisionManager()
+		self.task_manager = TaskManager(app)
+
 		rospy.init_node('listener', anonymous=True)
 
 		super(Main, self).__init__()
@@ -47,14 +48,19 @@ class Main(object):
 				people_3d_positions, objects_3d_positions, qrcodes_3d_positions = self.vision_manager.detect()
 				if cfg.debug_mode:
 					vision_time = time.time()
-					print("--- vision %s seconds ---" % (vision_time - start_time))
+					print("--- vision processing: \t %s seconds ---" % (vision_time - start_time))
 				self.task_manager.navigation_manager.show(people_3d_positions, objects_3d_positions, qrcodes_3d_positions)
 				if cfg.debug_mode:
 					display_time = time.time()
-					print("--- rviz display %s seconds ---" % (display_time - vision_time))
+					print("--- rviz display: \t %s seconds ---" % (display_time - vision_time))
+				if self.task_manager.current_task:
+					print('CTask:' + str(self.task_manager.current_task))
+				if self.task_manager.ongoing_tasks:
+					print('Queue: '+ str(self.task_manager.ongoing_tasks))
+					print('')
 				self.task_manager.step()
 				if cfg.debug_mode:
-					print("--- task execution %s seconds ---" % (time.time() - display_time))
+					print("--- task execution: \t %s seconds ---" % (time.time() - display_time))
 					print("\n")
 			self.terminate()
 

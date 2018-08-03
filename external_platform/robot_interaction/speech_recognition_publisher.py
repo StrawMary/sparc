@@ -4,6 +4,8 @@ import speech_recognition as sr
 import traceback
 from std_msgs.msg import String
 
+audio_stream = False
+
 api_key = '026f72c808604bbeabaf4af3f9339334'
 language_en = 'en-EN'
 language_ro = 'ro-RO'
@@ -16,7 +18,8 @@ class SpeechRecognizer:
 		self.engine = sr.Recognizer()
 		self.activated = True
 
-		self.microphone = sr.Microphone()
+		if audio_stream:
+			self.microphone = sr.Microphone()
 		self.publisher = rospy.Publisher('speech_text', String, queue_size=10)
 		rospy.init_node('talker', anonymous=True)
 		self.rate = rospy.Rate(10)
@@ -30,16 +33,21 @@ class SpeechRecognizer:
 			'language': language
 		}
 
-		with self.microphone as source:
-			self.engine.adjust_for_ambient_noise(source)
-			audio = self.engine.listen(source)
+		if audio_stream:
+			with self.microphone as source:
+				self.engine.adjust_for_ambient_noise(source)
+				audio = self.engine.listen(source)
 
-		try:
-			response['text'] = self.engine.recognize_google(audio, language=language)
-		except sr.RequestError:
-			response['error'] = 'API unavailable'
-		except sr.UnknownValueError:
-			response['error'] = 'Unable to recognize speech'
+			try:
+				response['text'] = self.engine.recognize_google(audio, language=language)
+			except sr.RequestError:
+				response['error'] = 'API unavailable'
+			except sr.UnknownValueError:
+				response['error'] = 'Unable to recognize speech'
+		else:
+			response['text'] = raw_input("Query: ")
+			if response['text'] == 'exit':
+				exit(0)
 
 		return response
 

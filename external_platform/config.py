@@ -58,6 +58,7 @@ fade_duration = 1.0
 GO_TO_PRIOR = 2
 FIND_PRIOR = 3
 SAY_PRIOR = 1
+SHOW_REMINDERS_PRIOR = 4
 
 # Wit.ai api params.
 URL = 'https://api.wit.ai/message'

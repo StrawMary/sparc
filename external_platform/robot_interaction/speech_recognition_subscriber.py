@@ -1,5 +1,6 @@
 import config as cfg
 import json
+import multiprocessing as mp
 import rospy
 import requests
 
@@ -8,41 +9,41 @@ from std_msgs.msg import String
 
 
 class SpeechManager:
-	def __init__(self, task_m):
+	def __init__(self, app, on_speech_received):
 		self.catch_phrase = cfg.speech_catch_phrase
 		self.fade_duration = cfg.fade_duration
 		self.robot_stream = cfg.robot_stream
-		self.task_m = task_m
+		self.on_speech_received = on_speech_received
 
 		self.activated = False
+		self.on_going_say_promise = None
+		self.on_going_say_promise_canceled = False
+		self.on_success = None
+		self.on_fail = None
 
 		if self.robot_stream:
-			self.leds_service = ALProxy("ALLeds", cfg.ip, cfg.port)
-			self.speech_service = ALProxy("ALTextToSpeech", cfg.ip, cfg.port)
-		rospy.Subscriber('speech_text', String, self.callback)
+			self.leds_service = app.session.service("ALLeds")
+			self.speech_service = app.session.service("ALTextToSpeech")
+			self.speech_subscriber = rospy.Publisher('/speech', String, queue_size=10)
+			self.recognition_subscriber = rospy.Subscriber('speech_text', String, self.callback)
 
-	def run(self):
-		if self.robot_stream:
-			rospy.spin()
+	def callback(self, received_data):
+		data = json.loads(received_data.data)
+		if not data['text']:
+			return
+		text = data['text'].strip().lower()
+		language = data['language']
 
-	def run_task_say(self, task):
-		if self.robot_stream:
-			self.speech_service.say(str(task.value), "English")
+		if text == self.catch_phrase:
+			self.activate()
+			return
 
-	def stop(self):
-		self.speech_service.stopAll()
+		interpreted_speech = self.interpret(text, language)
+		if interpreted_speech:
+			self.on_speech_received(interpreted_speech)
 
-	def activate(self):
-		self.activated = True
-
-		if self.robot_stream:
-			self.leds_service.fadeRGB('FaceLeds', 'green', self.fade_duration)
-
-	def deactivate(self):
-		self.activated = False
-
-		if self.robot_stream:
-			self.leds_service.fadeRGB('FaceLeds', "white", self.fade_duration)
+		if self.activated:
+			self.deactivate()
 
 	def interpret(self, text, language='en-EN'):
 		if not text:
@@ -51,7 +52,7 @@ class SpeechManager:
 		params = {'access_token': cfg.access_keys[language], 'q': text}
 		response = requests.get(url=cfg.URL, params=params).json()
 
-		# Entities should contain "intent", "target"(optional).
+		# The response should contain entities associated with the query.
 		if 'entities' not in response:
 			print('API server error: ' + str(response))
 			return None
@@ -61,7 +62,6 @@ class SpeechManager:
 		if 'intent' not in entities or len(entities['intent']) == 0:
 			print('No intent found.')
 			return None
-
 		intent = entities['intent'][0]
 
 		# Check that we have the mandatory entities to create a task.
@@ -72,7 +72,13 @@ class SpeechManager:
 		mandatory_entities = self.get_mandatory_entities(cfg.mandatory_intent_entities[intent['value']], entities)
 		optional_entities = self.get_optional_entities(cfg.mandatory_intent_entities[intent['value']], entities)
 
-		return {'intent': intent['value'], 'mandatory_entities': mandatory_entities, 'optional_entities': optional_entities}
+		interpreted_speech = {
+			'intent': intent['value'],
+			'mandatory_entities': mandatory_entities,
+			'optional_entities': optional_entities
+		}
+		print(interpreted_speech)
+		return interpreted_speech
 
 	def check_mandatory_entities(self, mandatory_entities, received_entities):
 		for entity in mandatory_entities:
@@ -95,33 +101,56 @@ class SpeechManager:
 					entities.append(entity['value'])
 		return entities
 
-	def callback(self, data):
-		data = json.loads(data.data)
-		if not data['text']:
-			return
-		text = data['text'].strip().lower()
-		language = data['language']
+	def say(self, text, on_success, on_fail):
+		if self.robot_stream:
+			if self.speech_subscriber:
+				self.speech_subscriber.publish(text)
+				on_success()
+			else:
+				on_fail()
 
-		if text == self.catch_phrase:
-			self.activate()
-			return
+	def clear_say_attrs(self):
+		self.on_going_say_promise = None
+		self.on_success = None
+		self.on_fail = None
+		self.on_going_say_promise_canceled = False
 
-		interpreted_speech = self.interpret(text, language)
-		self.task_m(interpreted_speech)
+	def say_async_callback(self, data):
+		if not self.on_going_say_promise_canceled:
+			if not data or data.hasError():
+				self.on_fail()
+			else:
+				self.on_success()
+		self.clear_say_attrs()
 
-		if self.activated:
-			self.deactivate()
+	def say_async(self, text, on_success=None, on_fail=None):
+		if self.robot_stream:
+			self.on_success = on_success
+			self.on_fail = on_fail
+			if text:
+				self.on_going_say_promise = self.speech_service.say(str(text), "English", _async=True)
+				self.on_going_say_promise.addCallback(self.say_async_callback)
+			else:
+				on_fail()
 
+	def stop(self):
+		if self.robot_stream:
+			if self.speech_service:
+				self.speech_service.stopAll()
 
-if __name__ == '__main__':
-	class AttrDict(dict):
-		def __init__(self, *args, **kwargs):
-			super(AttrDict, self).__init__(*args, **kwargs)
-			self.__dict__ = self
-	data = AttrDict()
-	data.update({'data': raw_input('Command:')})
+	def stop_async(self):
+		if self.robot_stream:
+			if self.on_going_say_promise:
+				self.on_going_say_promise_canceled = True
+				if self.speech_service:
+					self.speech_service.stopAll()
 
-	def test_f(text):
-		print(text)
-	speech_recognizer = SpeechManager(test_f)
-	speech_recognizer.callback(data)
+	def activate(self):
+		self.activated = True
+		if self.robot_stream:
+			self.leds_service.fadeRGB('FaceLeds', 'green', self.fade_duration)
+
+	def deactivate(self):
+		self.activated = False
+		if self.robot_stream:
+			self.leds_service.fadeRGB('FaceLeds', "white", self.fade_duration)

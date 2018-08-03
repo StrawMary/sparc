@@ -83,10 +83,6 @@ class FaceNetDetector:
                 frame = facenet.to_rgb(frame)
         frame = frame[:, :, 0:3]
 
-        if cfg.debug_mode:
-            detection_time = time.time()
-            print("\t\t\t detection %s" % (detection_time - start_time))
-
         for bbox in bboxes:
             emb_array = np.zeros((1, self.embedding_size))
 
@@ -110,9 +106,6 @@ class FaceNetDetector:
                 result.append(([bbox[0], bbox[1], bbox[2], bbox[3]], self.people_names[class_index], confidence))
             else:
                 result.append(([bbox[0], bbox[1], bbox[2], bbox[3]], cfg.unknown_name, confidence))
-
-        if cfg.debug_mode:
-            print("\t\t\t recognition %s" % (time.time() - detection_time))
 
         return result
 

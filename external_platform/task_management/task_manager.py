@@ -2,10 +2,11 @@ import config as cfg
 import heapq
 
 from enum import Enum
-from navigation.navigation_manager import NavigationManager, ClassType, KNOWN_LABELS
+from navigation.navigation_manager import NavigationManager
 from navigation.pose_manager import PepperPoseManager
 from robot_interaction.speech_recognition_subscriber import SpeechManager
-from task import Task
+from task_management.task import TaskStatus, MoveToTask, SayTask, ShowRemindersTask
+from task_management.behaviors import *
 
 
 class TaskType(Enum):
@@ -15,110 +16,97 @@ class TaskType(Enum):
 
 
 class TaskManager:
-	def __init__(self):
+	def __init__(self, app):
 		self.ongoing_tasks = []
-		self.speech_manager = SpeechManager(self.interpret_speech)
+		self.speech_manager = SpeechManager(app, self.create_behavior)
 		self.navigation_manager = NavigationManager()
 		self.pose_manager = PepperPoseManager()
 		self.current_task = None
 
-	def interpret_speech(self, data):
-		if not data:
+	def create_behavior(self, data):
+		if data['intent'] == cfg.STOP_INTENT:
+			self.stop_task(self.current_task)
 			return
 
 		if data['intent'] == cfg.GO_TO_INTENT:
-			if self.create_tasks_go(data['mandatory_entities'][0]):
-				self.create_tasks_say('Going to ' + data['mandatory_entities'][0])
-			else:
-				self.create_tasks_say('Sorry I cannot do that!')
+			behavior_head = get_go_to_behavior(self, data['mandatory_entities'][0])
 		elif data['intent'] == cfg.FIND_INTENT:
-			if self.create_tasks_find(data['mandatory_entities'][0]):
-				self.create_tasks_say('Finding ' + data['mandatory_entities'][0])
-			else:
-				self.create_tasks_say('Sorry I cannot do that!')
+			behavior_head = get_find_behavior(self, data['mandatory_entities'][0])
 		elif data['intent'] == cfg.SAY_INTENT:
 			if data['mandatory_entities'][0] in cfg.presentations:
-				self.create_tasks_say(cfg.presentations[data['mandatory_entities'][0]])
+				behavior_head = get_say_behavior(self, cfg.presentations[data['mandatory_entities'][0]])
 			else:
-				self.create_tasks_say(cfg.presentations['default'])
-		elif data['intent'] == cfg.STOP_INTENT:
-			self.stop_current_task()
-	
-	def stop_current_task(self):
-		if self.current_task:
-			if self.current_task.type == TaskType.GO_TO:
-				self.navigation_manager.stop_movement()
-			elif self.current_task.type == TaskType.SAY_SOMETHING:
-				self.speech_manager.stop()
-			elif self.current_task.type == TaskType.FIND_OBJECT:
-				#TODO clear the list of positions we want to reach
-				self.navigation_manager.stop_movement()
+				behavior_head = get_say_behavior(self, cfg.presentations['default'])
+		else:
+			return
 
-			self.current_task = None
+		self.add_task_to_queue(behavior_head)
 
-	def create_tasks_go(self, data):
-		if data and self.navigation_manager.is_located(data):
-			go_to_task = Task(type=TaskType.GO_TO,
-							  priority=cfg.GO_TO_PRIOR,
-							  label=data,
-							  value=self.navigation_manager.get_coordinate_for_label(data))
-			heapq.heappush(self.ongoing_tasks, (go_to_task.priority, go_to_task))
-			return True
-		return False
+	def create_task_go_to(self, target):
+		if target and self.navigation_manager.is_located(target):
+			task = MoveToTask(self.navigation_manager.move_to_coordinate,
+							  self.navigation_manager.stop_movement,
+							  None,
+							  None,
+							  self.add_task_to_queue,
+							  cfg.GO_TO_PRIOR,
+							  self.navigation_manager.get_coordinate_for_label(target))
+			return task
+		return None
 
-	def create_tasks_say(self, data):
-		if data:
-			say_task = Task(type=TaskType.SAY_SOMETHING,
-							priority=cfg.SAY_PRIOR,
-							value=data)
-			heapq.heappush(self.ongoing_tasks, (say_task.priority, say_task))
-			return True
-		return False
+	def create_task_say(self, text):
+		if text:
+			task = SayTask(self.speech_manager.say_async,
+						   self.speech_manager.stop_async,
+						   None,
+						   None,
+						   self.add_task_to_queue,
+						   cfg.SAY_PRIOR,
+						   text)
+			return task
+		return None
 
-	def create_tasks_find(self, data):
-		if data and self.navigation_manager.is_located(data):
-			class_type = ClassType.PERSON
-			if data in KNOWN_LABELS:
-				class_type = ClassType.OBJECT
-			find_task = Task(type=TaskType.FIND_OBJECT,
-							 class_type=class_type,
-							 priority=cfg.FIND_PRIOR,
-							 label=data,
-							 value=self.navigation_manager.get_coordinate_for_label(data))
-			heapq.heappush(self.ongoing_tasks, (find_task.priority, find_task))
-			return True
-		return False
+	def create_task_show_reminders(self, url):
+		if url:
+			task = ShowRemindersTask(None,
+									 None,
+									 None,
+									 None,
+									 self.add_task_to_queue,
+									 cfg.SHOW_REMINDERS_PRIOR,
+									 url)
+			return task
+		return None
 
-	def get_next_task(self):
-		if self.ongoing_tasks:
-			return heapq.heappop(self.ongoing_tasks)
-		return -1, None
-
-	def step(self):
-		prior, task = self.get_next_task()
-		if task:
-			self.current_task = task
-			self.execute_task(self.current_task)
+	def add_task_to_queue(self, task):
+		heapq.heappush(self.ongoing_tasks, (task.priority, task))
 
 	def execute_task(self, task):
 		print("Executing task: " + str(task))
-		if task.type == TaskType.GO_TO:
-			self.navigation_manager.run_task_go_to(task, self.move_completed)
-		elif task.type == TaskType.SAY_SOMETHING:
-			self.speech_manager.run_task_say(task)
-		elif task.type == TaskType.FIND_OBJECT:
-			self.navigation_manager.run_task_find(task, self.move_completed)
+		task.run()
 
-	def say_completed(self):
-		self.current_task = None
+	def stop_task(self, task):
+		if task:
+			task.stop()
 
-	def move_completed(self, success):
-		if success:
-			self.create_tasks_say("Here you go.")
-		else:
-			self.create_tasks_say("Sorry I cannot move there.")
+	def get_next_task(self):
+		if self.ongoing_tasks and len(self.ongoing_tasks) > 0:
+			if not self.current_task or self.current_task.priority > self.ongoing_tasks[0][0]:
+				return heapq.heappop(self.ongoing_tasks)
+		return -1, None
 
-		if self.current_task:
-			if self.current_task.type == TaskType.GO_TO:
-				self.current_task = None
-		#TODO Make sure that the find task is completed (The final destination has been reached)
+	def step(self):
+		if self.current_task and \
+				self.current_task.status != TaskStatus.PENDING and \
+				self.current_task.status != TaskStatus.RUNNING:
+			self.current_task = None
+
+		prior, task = self.get_next_task()
+		if not task:
+			return
+		if task != self.current_task:
+			if self.current_task:
+				self.stop_task(self.current_task)
+				self.add_task_to_queue(self.current_task)
+			self.current_task = task
+			self.execute_task(self.current_task)
