@@ -12,7 +12,6 @@ import traceback
 import time
 
 from task_management.task_manager import TaskManager
-from vision.vision_manager import VisionManager
 
 
 class Main(object):
@@ -20,7 +19,6 @@ class Main(object):
 		if cfg.robot_stream:
 			app.start()
 
-		self.vision_manager = VisionManager()
 		self.task_manager = TaskManager(app)
 
 		rospy.init_node('listener', anonymous=True)
@@ -33,7 +31,7 @@ class Main(object):
 		sys.exit(-2)
 
 	def terminate(self):
-		self.vision_manager.shut_down()
+		self.task_manager.vision_manager.shut_down()
 		self.task_manager.navigation_manager.shut_down()
 
 	def run(self):
@@ -42,10 +40,10 @@ class Main(object):
 			self.task_manager.pose_manager.stand_init()
 
 		try:
-			while self.vision_manager.is_running():
+			while self.task_manager.vision_manager.is_running():
 				if cfg.debug_mode:
 					start_time = time.time()
-				people_3d_positions, objects_3d_positions, qrcodes_3d_positions = self.vision_manager.detect()
+				people_3d_positions, objects_3d_positions, qrcodes_3d_positions = self.task_manager.vision_manager.detect()
 				if cfg.debug_mode:
 					vision_time = time.time()
 					print("--- vision processing: \t %s seconds ---" % (vision_time - start_time))

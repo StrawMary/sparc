@@ -55,24 +55,27 @@ speech_catch_phrase = 'hey pepper'
 fade_duration = 1.0
 
 # Task priorities.
-GO_TO_PRIOR = 2
-FIND_PRIOR = 3
 SAY_PRIOR = 1
-SHOW_REMINDERS_PRIOR = 4
+SEARCH_PRIOR = 2
+GO_TO_PRIOR = 3
+FIND_PRIOR = 4
+SHOW_REMINDERS_PRIOR = 5
 
 # Wit.ai api params.
 URL = 'https://api.wit.ai/message'
 access_keys = {'en-EN':  'VAYDJDTZRU4644WDEK4Q6YVXLY47F7GC', 'ro-RO': 'AOWWWDRYJW6C3MODYRQKJY25YSCNBLFD'}
 
 # Wit.ai intent-entity association.
-GO_TO_INTENT = 'go to'
-FIND_INTENT = 'find'
 SAY_INTENT = 'say'
+GO_TO_INTENT = 'go to'
+SEARCH_INTENT = 'search'
+FIND_INTENT = 'find'
 STOP_INTENT = 'stop'
 
-mandatory_intent_entities = {GO_TO_INTENT: ['target'],
+mandatory_intent_entities = {SAY_INTENT: ['target'],
+							 GO_TO_INTENT: ['target'],
+							 SEARCH_INTENT: ['target'],
 							 FIND_INTENT: ['target'],
-							 SAY_INTENT: ['target'],
 							 STOP_INTENT: []}
 
 # Association between subjects and presentations.

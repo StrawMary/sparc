@@ -21,6 +21,10 @@ class VisionManager:
 		self.data_processor = DataProcessor()
 		self.running = True
 
+		self.searched_target = None
+		self.on_success = None
+		self.on_fail = None
+
 		if cfg.robot_stream:
 			self.image_provider = ImageProvider(cfg.ip, cfg.port, cfg.frameRate)
 			self.image_provider.connect()
@@ -128,6 +132,8 @@ class VisionManager:
 			camera_height
 		)
 
+		self.check_detected_target(people)
+
 		if cfg.debug_mode:
 			pos_time = time.time()
 			print("\t 3d positions: \t %s seconds" % (pos_time - nets_time))
@@ -164,3 +170,32 @@ class VisionManager:
 
 	def is_running(self):
 		return self.running
+
+	def clear_move_attrs(self):
+		self.searched_target = None
+		self.on_success = None
+		self.on_fail = None
+
+	def check_detected_target(self, people):
+		if self.searched_target:
+			found = False
+			for person in people:
+				if 'name' in person and person['name'] == self.searched_target.lower():
+					found = True
+					break
+			if found:
+				self.on_success()
+			else:
+				self.on_fail()
+			self.clear_move_attrs()
+
+	def search_person(self, target, on_success=None, on_fail=None):
+		if not target:
+			on_fail()
+
+		self.searched_target = target
+		self.on_success = on_success
+		self.on_fail = on_fail
+
+	def stop_search(self):
+		self.clear_move_attrs()

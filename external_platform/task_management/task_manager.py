@@ -5,8 +5,9 @@ from enum import Enum
 from navigation.navigation_manager import NavigationManager
 from navigation.pose_manager import PepperPoseManager
 from robot_interaction.speech_recognition_subscriber import SpeechManager
-from task_management.task import TaskStatus, MoveToTask, SayTask, ShowRemindersTask
+from task_management.task import TaskStatus, MoveToTask, SayTask, SearchPersonTask, ShowRemindersTask
 from task_management.behaviors import *
+from vision.vision_manager import VisionManager
 
 
 class TaskType(Enum):
@@ -18,6 +19,7 @@ class TaskType(Enum):
 class TaskManager:
 	def __init__(self, app):
 		self.ongoing_tasks = []
+		self.vision_manager = VisionManager()
 		self.speech_manager = SpeechManager(app, self.create_behavior)
 		self.navigation_manager = NavigationManager()
 		self.pose_manager = PepperPoseManager()
@@ -28,7 +30,9 @@ class TaskManager:
 			self.stop_task(self.current_task)
 			return
 
-		if data['intent'] == cfg.GO_TO_INTENT:
+		if data['intent'] == cfg.SEARCH_INTENT:
+			behavior_head = get_search_behavior(self, data['mandatory_entities'][0])
+		elif data['intent'] == cfg.GO_TO_INTENT:
 			behavior_head = get_go_to_behavior(self, data['mandatory_entities'][0])
 		elif data['intent'] == cfg.FIND_INTENT:
 			behavior_head = get_find_behavior(self, data['mandatory_entities'][0])
@@ -42,18 +46,6 @@ class TaskManager:
 
 		self.add_task_to_queue(behavior_head)
 
-	def create_task_go_to(self, target):
-		if target and self.navigation_manager.is_located(target):
-			task = MoveToTask(self.navigation_manager.move_to_coordinate,
-							  self.navigation_manager.stop_movement,
-							  None,
-							  None,
-							  self.add_task_to_queue,
-							  cfg.GO_TO_PRIOR,
-							  self.navigation_manager.get_coordinate_for_label(target))
-			return task
-		return None
-
 	def create_task_say(self, text):
 		if text:
 			task = SayTask(self.speech_manager.say_async,
@@ -63,6 +55,30 @@ class TaskManager:
 						   self.add_task_to_queue,
 						   cfg.SAY_PRIOR,
 						   text)
+			return task
+		return None
+
+	def create_task_search(self, target):
+		if target:
+			task = SearchPersonTask(self.vision_manager.search_person,
+									self.vision_manager.stop_search,
+									None,
+									None,
+									self.add_task_to_queue,
+									cfg.SEARCH_PRIOR,
+									target)
+			return task
+		return None
+
+	def create_task_go_to(self, target):
+		if target and self.navigation_manager.is_located(target):
+			task = MoveToTask(self.navigation_manager.move_to_coordinate,
+							  self.navigation_manager.stop_movement,
+							  None,
+							  None,
+							  self.add_task_to_queue,
+							  cfg.GO_TO_PRIOR,
+							  self.navigation_manager.get_coordinate_for_label(target))
 			return task
 		return None
 
