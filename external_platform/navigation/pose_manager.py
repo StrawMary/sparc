@@ -13,5 +13,5 @@ class PepperPoseManager:
 		self.posture = ALProxy('ALRobotPosture', ip, port)
 
 	def stand_init(self):
-		self.posture.goToPosture('StandInit', 2.0)
+		self.posture.goToPosture('StandInit', 1.0)
 

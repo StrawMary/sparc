@@ -19,7 +19,7 @@ class TaskType(Enum):
 class TaskManager:
 	def __init__(self, app):
 		self.ongoing_tasks = []
-		self.vision_manager = VisionManager()
+		self.vision_manager = VisionManager(app)
 		self.speech_manager = SpeechManager(app, self.create_behavior)
 		self.navigation_manager = NavigationManager()
 		self.pose_manager = PepperPoseManager()

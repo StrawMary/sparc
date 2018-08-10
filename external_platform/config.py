@@ -44,9 +44,9 @@ unknown_name = 'unknown'
 objects_distance_threshold = 1.0
 
 # Map colors to display.
-person_color = ColorRGBA(0.0, 0.5, 0.5, 0.8)
-object_color = ColorRGBA(1.0, 1.0, 0.5, 0.8)
-qrcode_color = ColorRGBA(1.0, 0.5, 0.5, 0.8)
+colors = {'person_color': ColorRGBA(0.0, 0.5, 0.5, 0.8),
+		  'object_color': ColorRGBA(1.0, 1.0, 0.5, 0.8),
+		  'qrcode_color': ColorRGBA(1.0, 0.5, 0.5, 0.8)}
 
 # Catch phrase to start speech recognition.
 speech_catch_phrase = 'hey pepper'
@@ -67,14 +67,14 @@ access_keys = {'en-EN':  'VAYDJDTZRU4644WDEK4Q6YVXLY47F7GC', 'ro-RO': 'AOWWWDRYJ
 
 # Wit.ai intent-entity association.
 SAY_INTENT = 'say'
+SEARCH_INTENT = 'look'
 GO_TO_INTENT = 'go to'
-SEARCH_INTENT = 'search'
 FIND_INTENT = 'find'
 STOP_INTENT = 'stop'
 
 mandatory_intent_entities = {SAY_INTENT: ['target'],
-							 GO_TO_INTENT: ['target'],
 							 SEARCH_INTENT: ['target'],
+							 GO_TO_INTENT: ['target'],
 							 FIND_INTENT: ['target'],
 							 STOP_INTENT: []}
 
@@ -88,6 +88,4 @@ presentations = Dict({'lab308': lab308_presentation,
 					  'time': get_time_presentation,
 					  'default': default_presentation})
 
-# Predefined positions for 'find' intent.
-possible_locations = {'stephanie': stephanie_possible_locations,
-					  'alex': alex_possible_locations}
+last_known_positions_file = 'positions.p'

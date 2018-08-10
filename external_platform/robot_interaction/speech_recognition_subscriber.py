@@ -101,14 +101,6 @@ class SpeechManager:
 					entities.append(entity['value'])
 		return entities
 
-	def say(self, text, on_success, on_fail):
-		if self.robot_stream:
-			if self.speech_subscriber:
-				self.speech_subscriber.publish(text)
-				on_success()
-			else:
-				on_fail()
-
 	def clear_say_attrs(self):
 		self.on_going_say_promise = None
 		self.on_success = None
@@ -132,11 +124,6 @@ class SpeechManager:
 				self.on_going_say_promise.addCallback(self.say_async_callback)
 			else:
 				on_fail()
-
-	def stop(self):
-		if self.robot_stream:
-			if self.speech_service:
-				self.speech_service.stopAll()
 
 	def stop_async(self):
 		if self.robot_stream:

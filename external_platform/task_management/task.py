@@ -39,7 +39,7 @@ class SearchPersonTask(ITask):
 
     def run(self):
         self.status = TaskStatus.RUNNING
-        self.run_method(self.url, self.on_success, self.on_fail)
+        self.run_method(self.name, self.on_success, self.on_fail)
 
     def stringify(self):
         return '\n%s: \tPrior: %d \tStatus: %s \tPerson: %s' % (self.__class__.__name__, self.priority, str(self.status), self.name)

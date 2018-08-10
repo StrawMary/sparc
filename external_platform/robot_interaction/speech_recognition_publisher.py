@@ -4,7 +4,7 @@ import speech_recognition as sr
 import traceback
 from std_msgs.msg import String
 
-audio_stream = False
+audio_stream = True
 
 api_key = '026f72c808604bbeabaf4af3f9339334'
 language_en = 'en-EN'
@@ -71,5 +71,9 @@ class SpeechRecognizer:
 
 
 if __name__ == '__main__':
+	response = raw_input("Audio stream? [y/n]: ")
+	if response == 'no' or response == 'n':
+		audio_stream = False
+
 	speech_recognizer = SpeechRecognizer()
 	speech_recognizer.run()

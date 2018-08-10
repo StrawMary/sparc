@@ -12,10 +12,12 @@ from move_base_msgs.msg import MoveBaseActionFeedback, MoveBaseActionResult
 from scipy.spatial import distance
 from std_msgs.msg import Header
 from visualization_msgs.msg import Marker, MarkerArray
-
+import math
+import json, yaml
 from navigation.target import Target
 from robot_localization import PepperLocalization
-
+import os.path
+import pickle
 
 KNOWN_LABELS = {8: 'chair', 10: 'table', 15: 'plant', 17: 'sofa', 19: 'monitor'}
 
@@ -75,6 +77,20 @@ class NavigationManager:
 
 	def move_to_coordinate(self, goal, on_success=None, on_fail=None):
 		if cfg.robot_stream:
+			goal_position = goal.pose.position
+			robot_position = self.pepper_localization.get_pose().pose.position
+
+			if robot_position:
+				angle = math.atan2(goal_position.y - robot_position.y, goal_position.x - robot_position.x)
+
+				old_angles = tf.transformations.euler_from_quaternion((goal.pose.orientation.x, goal.pose.orientation.y,
+																	  goal.pose.orientation.z, goal.pose.orientation.w))
+				q = tf.transformations.quaternion_from_euler(old_angles[0], old_angles[1], angle + math.radians(180))
+				goal.pose.orientation.x = q[0]
+				goal.pose.orientation.y = q[1]
+				goal.pose.orientation.z = q[2]
+				goal.pose.orientation.w = q[3]
+
 			self.move_publisher.publish(goal)
 			self.on_success = on_success
 			self.on_fail = on_fail
@@ -177,7 +193,7 @@ class NavigationManager:
 				pose=deepcopy(self.encountered_positions[label][1].pose),
 				scale=Vector3(0.2, 0.2, 0.2),
 				header=Header(frame_id='odom'),
-				color=self.encountered_positions[label][0],
+				color=cfg.colors[self.encountered_positions[label][0]],
 				text=label)
 			markers.append(marker)
 			i += 1
@@ -189,7 +205,7 @@ class NavigationManager:
 				pose=self.encountered_positions[label][1].pose,
 				scale=Vector3(0.2, 0.2, 0.2),
 				header=Header(frame_id='odom'),
-				color=self.encountered_positions[label][0],
+				color=cfg.colors[self.encountered_positions[label][0]],
 				text=label
 			)
 			markers.append(marker2)
@@ -242,7 +258,7 @@ class NavigationManager:
 							pose_in_map.pose.position) < cfg.objects_distance_threshold:
 						matched = key
 			if not matched:
-				self.encountered_positions[object_ref] = [cfg.object_color, pose_in_map]
+				self.encountered_positions[object_ref] = ['object_color', pose_in_map]
 				self.object_ID += 1
 				self.add_new_possible_goal(object_ref)
 			else:
@@ -250,9 +266,9 @@ class NavigationManager:
 
 		else:
 			if not target.label in self.encountered_positions:
-				self.encountered_positions[target.label] = [cfg.qrcode_color, pose_in_map]
+				self.encountered_positions[target.label] = ['qrcode_color', pose_in_map]
 				if target.class_type == ClassType.PERSON:
-					self.encountered_positions[target.label][0] = cfg.person_color
+					self.encountered_positions[target.label][0] = 'person_color'
 				self.add_new_possible_goal(target.label)
 			else:
 				self.encountered_positions[target.label][1] = pose_in_map
@@ -260,7 +276,22 @@ class NavigationManager:
 		if cfg.debug_mode:
 			print("\ttransform %s seconds" % (time.time() - start_time))
 
+	def load_positions_from_file(self):
+		if not os.path.isfile(cfg.last_known_positions_file):
+			return
+
+		with open(cfg.last_known_positions_file, 'r') as content_file:
+			self.encountered_positions = pickle.load(content_file)
+
+	def save_positions_to_file(self):
+		with open(cfg.last_known_positions_file, 'w') as content_file:
+			stable_targets = {}
+			for key, target in self.encountered_positions.iteritems():
+				if target[0] == 'person_color' or target[0] == 'qrcode_color':
+					stable_targets[key] = target
+			pickle.dump(stable_targets, content_file)
+
 	def shut_down(self):
-		pass
+		self.save_positions_to_file()
 
 

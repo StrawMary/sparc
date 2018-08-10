@@ -2,6 +2,7 @@ import config as cfg
 import cv2
 import time
 
+from navigation.pose_manager import PepperPoseManager
 from vision.data_processor import DataProcessor
 from vision.facenet.face_detector_recognizer import FaceNetDetector
 from vision.image_provider.image_provider import ImageProvider
@@ -12,7 +13,7 @@ from vision.yolo2.people_detector import PeopleDetector
 
 
 class VisionManager:
-	def __init__(self):
+	def __init__(self, app):
 		self.people_detector = PeopleDetector()
 		self.tracker = Tracker()
 		self.segmentation = Segmentation()
@@ -21,13 +22,18 @@ class VisionManager:
 		self.data_processor = DataProcessor()
 		self.running = True
 
+		self.pose_manager = PepperPoseManager()
 		self.searched_target = None
+		self.found_searched_target = False
 		self.on_success = None
 		self.on_fail = None
+		self.on_going_say_promise = None
+		self.on_going_say_promise_canceled = False
 
 		if cfg.robot_stream:
 			self.image_provider = ImageProvider(cfg.ip, cfg.port, cfg.frameRate)
 			self.image_provider.connect()
+			self.behavior_manager = app.session.service("ALBehaviorManager")
 		else:
 			self.camera = cv2.VideoCapture(-1)
 
@@ -171,23 +177,31 @@ class VisionManager:
 	def is_running(self):
 		return self.running
 
-	def clear_move_attrs(self):
+	def clear_search_attrs(self):
 		self.searched_target = None
+		self.found_searched_target = False
 		self.on_success = None
 		self.on_fail = None
+		self.on_going_say_promise = None
+		self.on_going_say_promise_canceled = False
 
 	def check_detected_target(self, people):
 		if self.searched_target:
-			found = False
 			for person in people:
-				if 'name' in person and person['name'] == self.searched_target.lower():
-					found = True
+				if 'name' in person and person['name'].lower() == self.searched_target.lower():
+					self.found_searched_target = True
+					self.stop_search(external_stop=False)
 					break
-			if found:
+
+	def move_head_callback(self, data):
+		if data.hasError():
+			self.on_fail()
+		if not self.on_going_say_promise_canceled:
+			if self.found_searched_target:
 				self.on_success()
 			else:
 				self.on_fail()
-			self.clear_move_attrs()
+		self.clear_search_attrs()
 
 	def search_person(self, target, on_success=None, on_fail=None):
 		if not target:
@@ -197,5 +211,14 @@ class VisionManager:
 		self.on_success = on_success
 		self.on_fail = on_fail
 
-	def stop_search(self):
-		self.clear_move_attrs()
+		self.on_going_say_promise = self.behavior_manager.runBehavior("movehead001/behavior_1", _async=True)
+		self.on_going_say_promise.addCallback(self.move_head_callback)
+
+	def stop_search(self, external_stop=True):
+		if cfg.robot_stream:
+			if self.on_going_say_promise:
+				self.on_going_say_promise_canceled = external_stop
+				if self.behavior_manager and self.behavior_manager.isBehaviorRunning("movehead001/behavior_1"):
+					self.behavior_manager.stopBehavior("movehead001/behavior_1")
+				if external_stop:
+					self.pose_manager.stand_init()
