@@ -38,6 +38,7 @@ class Main(object):
 		print('Running...')
 		print('Looking for objects...')
 		self.task_manager.navigation_manager.load_positions_from_file()
+		self.task_manager.navigation_manager.load_default_positions()
 
 		if cfg.robot_stream:
 			self.task_manager.pose_manager.stand_init()

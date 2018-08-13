@@ -19,13 +19,12 @@ from robot_localization import PepperLocalization
 import os.path
 import pickle
 
-KNOWN_LABELS = {8: 'chair', 10: 'table', 15: 'plant', 17: 'sofa', 19: 'monitor'}
-
 
 class ClassType(Enum):
 	PERSON = 1
 	OBJECT = 2
 	QRCODE = 3
+	PERSON_DEFAULT = 4
 
 
 class NavigationManager:
@@ -101,7 +100,7 @@ class NavigationManager:
 		self.goal_ids = []
 
 	def is_located(self, key):
-		return key in self.encountered_positions
+		return key in self.encountered_positions or key + '@' in self.encountered_positions
 
 	def get_closest_location(self, locations):
 		start_time = time.time()
@@ -123,8 +122,11 @@ class NavigationManager:
 		return closest_location
 
 	def get_coordinate_for_label(self, key):
+		print(self.encountered_positions.keys())
 		if key in self.encountered_positions:
 			return self.get_closest_location(self.encountered_positions[key][1:])
+		elif key + "@" in self.encountered_positions:
+			return self.get_closest_location(self.encountered_positions[key + "@"][1:])
 		else:
 			return None
 
@@ -132,6 +134,18 @@ class NavigationManager:
 		a = (p1.x, p1.y, p1.z)
 		b = (p2.x, p2.y, p2.z)
 		return distance.euclidean(a, b)
+
+	def load_default_positions(self):
+		targets = []
+		for key, value in cfg.default_positions.iteritems():
+			show_target = Target(
+				class_type=ClassType.PERSON_DEFAULT,
+				label=key + '@',
+				coordinates=value
+			)
+			targets.append(show_target)
+		self.show_targets(targets, False)
+
 
 	def show_positions(self, data, value):
 		targets = []
@@ -156,10 +170,10 @@ class NavigationManager:
 
 		elif value == 'objects':
 			for (class_id, position) in data:  # info = [class_id, position]
-				if class_id in KNOWN_LABELS:
+				if class_id in cfg.KNOWN_LABELS:
 					show_target = Target(
 						class_type=ClassType.OBJECT,
-						label=str(KNOWN_LABELS[class_id]),
+						label=str(cfg.KNOWN_LABELS[class_id]),
 						coordinates=position
 					)
 					targets.append(show_target)
@@ -186,35 +200,36 @@ class NavigationManager:
 		markers = []
 		i = 0
 		for label in self.encountered_positions:
-			marker = Marker(
-				type=Marker.TEXT_VIEW_FACING,
-				id=i,
-				lifetime=rospy.Duration(2.0),
-				pose=deepcopy(self.encountered_positions[label][1].pose),
-				scale=Vector3(0.2, 0.2, 0.2),
-				header=Header(frame_id='odom'),
-				color=cfg.colors[self.encountered_positions[label][0]],
-				text=label)
-			markers.append(marker)
-			i += 1
-			marker.pose.position.z += 0.3
-			marker2 = Marker(
-				type=Marker.SPHERE,
-				id=i,
-				lifetime=rospy.Duration(2.0),
-				pose=self.encountered_positions[label][1].pose,
-				scale=Vector3(0.2, 0.2, 0.2),
-				header=Header(frame_id='odom'),
-				color=cfg.colors[self.encountered_positions[label][0]],
-				text=label
-			)
-			markers.append(marker2)
-			i += 1
+			for position in self.encountered_positions[label][1:]:
+				marker = Marker(
+					type=Marker.TEXT_VIEW_FACING,
+					id=i,
+					lifetime=rospy.Duration(2.0),
+					pose=deepcopy(position.pose),
+					scale=Vector3(0.2, 0.2, 0.2),
+					header=Header(frame_id='odom'),
+					color=cfg.colors[self.encountered_positions[label][0]],
+					text=label)
+				markers.append(marker)
+				i += 1
+				marker.pose.position.z += 0.3
+				marker2 = Marker(
+					type=Marker.SPHERE,
+					id=i,
+					lifetime=rospy.Duration(2.0),
+					pose=position.pose,
+					scale=Vector3(0.2, 0.2, 0.2),
+					header=Header(frame_id='odom'),
+					color=cfg.colors[self.encountered_positions[label][0]],
+					text=label
+				)
+				markers.append(marker2)
+				i += 1
 
 		if cfg.robot_stream:
 			self.marker_array_publisher.publish(markers)
 
-	def show_targets(self, targets):
+	def show_targets(self, targets, use_laser=True):
 		try:
 			if cfg.robot_stream:
 				self.listener.waitForTransform('/laser', '/map', rospy.Time(), rospy.Duration(0.2))
@@ -224,9 +239,9 @@ class NavigationManager:
 			pass
 		if cfg.robot_stream:
 			for target in targets:
-				self.show_target(target, self.listener)
+				self.show_target(target, self.listener, use_laser)
 
-	def show_target(self, target, listener):
+	def show_target(self, target, listener, use_laser=True):
 		if cfg.robot_stream:
 			robot_last_pose = self.pepper_localization.get_pose()
 		else:
@@ -240,7 +255,11 @@ class NavigationManager:
 		loc.position.z = target.coordinates[2]
 		loc.orientation = robot_last_pose.pose.orientation
 		pose = PoseStamped()
-		pose.header.frame_id = 'laser'
+
+		if use_laser:
+			pose.header.frame_id = 'laser'
+		else:
+			pose.header.frame_id = 'map'
 		pose.pose = loc
 
 		pose_in_map = listener.transformPose('/odom', pose)
@@ -249,26 +268,25 @@ class NavigationManager:
 		start_time = time.time()
 
 		if target.class_type == ClassType.OBJECT:
-			object_ref = target.label + str(self.object_ID)
-			matched = None
-			for key in self.encountered_positions:
-				if key.startswith(target.label):
-					if self.compute_euclidian_distance(
-							self.encountered_positions[key][1].pose.position,
+			matched = False
+			if target.label in self.encountered_positions:
+				for existing_position in self.encountered_positions[target.label][1:]:
+					if self.compute_euclidian_distance(existing_position.pose.position,
 							pose_in_map.pose.position) < cfg.objects_distance_threshold:
-						matched = key
-			if not matched:
-				self.encountered_positions[object_ref] = ['object_color', pose_in_map]
-				self.object_ID += 1
-				self.add_new_possible_goal(object_ref)
+						matched = True
+				if not matched:
+					self.encountered_positions[target.label].append(pose_in_map)
 			else:
-				self.encountered_positions[matched].append(pose_in_map)
+				self.encountered_positions[target.label] = ['object_color', pose_in_map]
+				self.add_new_possible_goal(target.label)
 
 		else:
 			if not target.label in self.encountered_positions:
 				self.encountered_positions[target.label] = ['qrcode_color', pose_in_map]
 				if target.class_type == ClassType.PERSON:
 					self.encountered_positions[target.label][0] = 'person_color'
+				elif target.class_type == ClassType.PERSON_DEFAULT:
+					self.encountered_positions[target.label][0] = 'person_default_color'
 				self.add_new_possible_goal(target.label)
 			else:
 				self.encountered_positions[target.label][1] = pose_in_map

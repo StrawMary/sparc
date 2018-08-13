@@ -1,7 +1,7 @@
 from predefined_possible_locations import *
 from std_msgs.msg import ColorRGBA
 from subject_presentations import *
-
+from utils.utils import *
 # Receive or send data to the robot
 robot_stream = True
 send_data = False
@@ -44,9 +44,10 @@ unknown_name = 'unknown'
 objects_distance_threshold = 1.0
 
 # Map colors to display.
-colors = {'person_color': ColorRGBA(0.0, 0.5, 0.5, 0.8),
-		  'object_color': ColorRGBA(1.0, 1.0, 0.5, 0.8),
-		  'qrcode_color': ColorRGBA(1.0, 0.5, 0.5, 0.8)}
+colors = {'person_color': ColorRGBA(0.0, 0.5, 0.5, 1.0),
+		  'object_color': ColorRGBA(1.0, 1.0, 0.5, 1.0),
+		  'qrcode_color': ColorRGBA(1.0, 0.5, 0.5, 1.0),
+		  'person_default_color': ColorRGBA(0.2, 0.6, 1.0, 1.0)}
 
 # Catch phrase to start speech recognition.
 speech_catch_phrase = 'hey pepper'
@@ -71,21 +72,34 @@ SEARCH_INTENT = 'look'
 GO_TO_INTENT = 'go to'
 FIND_INTENT = 'find'
 STOP_INTENT = 'stop'
+HELLO_INTENT = 'hello'
+
+hello_response = 'hello'
 
 mandatory_intent_entities = {SAY_INTENT: ['target'],
 							 SEARCH_INTENT: ['target'],
 							 GO_TO_INTENT: ['target'],
 							 FIND_INTENT: ['target'],
-							 STOP_INTENT: []}
+							 STOP_INTENT: [],
+							 HELLO_INTENT: []}
 
 # Association between subjects and presentations.
-presentations = Dict({'lab308': lab308_presentation,
-					  'lab303': lab303_presentation,
-					  'lab306': lab306_presentation,
-					  'robot': robot_presentation,
-					  'alex': alex_presentation,
-					  'stephanie': stephanie_presentation,
-					  'time': get_time_presentation,
-					  'default': default_presentation})
+presentations = {'lab308': lab308_presentation,
+				'lab303': lab303_presentation,
+				'lab306': lab306_presentation,
+				'home': robot_presentation,
+				'alex': alex_presentation,
+				'stephanie': stephanie_presentation,
+				'time': get_time_presentation,
+				'weather': get_weather_report,
+				'default': default_presentation}
 
 last_known_positions_file = 'positions.p'
+
+default_positions = {
+	'alex': [5.7, 6.2, 1],
+	'stephanie': [6.0, 6.7, 1],
+	'home': [5.5, 10.0, 0]
+}
+
+KNOWN_LABELS = {8: 'chair', 10: 'table', 15: 'plant', 17: 'sofa', 19: 'monitor'}

@@ -138,7 +138,7 @@ class VisionManager:
 			camera_height
 		)
 
-		self.check_detected_target(people)
+		self.check_detected_target(people, qrcodes, objects)
 
 		if cfg.debug_mode:
 			pos_time = time.time()
@@ -185,13 +185,23 @@ class VisionManager:
 		self.on_going_say_promise = None
 		self.on_going_say_promise_canceled = False
 
-	def check_detected_target(self, people):
+	def check_detected_target(self, people, qrcodes, objects):
 		if self.searched_target:
 			for person in people:
 				if 'name' in person and person['name'].lower() == self.searched_target.lower():
 					self.found_searched_target = True
 					self.stop_search(external_stop=False)
-					break
+					return
+			for qrcode in qrcodes:
+				if qrcode[1].lower() == self.searched_target.lower():
+					self.found_searched_target = True
+					self.stop_search(external_stop=False)
+					return
+			for obj in objects:
+				if obj[1] in cfg.KNOWN_LABELS and cfg.KNOWN_LABELS[obj[1]].lower() == self.searched_target.lower():
+					self.found_searched_target = True
+					self.stop_search(external_stop=False)
+					return
 
 	def move_head_callback(self, data):
 		if data.hasError():
@@ -203,7 +213,7 @@ class VisionManager:
 				self.on_fail()
 		self.clear_search_attrs()
 
-	def search_person(self, target, on_success=None, on_fail=None):
+	def search_target(self, target, on_success=None, on_fail=None):
 		if not target:
 			on_fail()
 

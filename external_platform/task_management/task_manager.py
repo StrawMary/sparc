@@ -38,9 +38,14 @@ class TaskManager:
 			behavior_head = get_find_behavior(self, data['mandatory_entities'][0])
 		elif data['intent'] == cfg.SAY_INTENT:
 			if data['mandatory_entities'][0] in cfg.presentations:
-				behavior_head = get_say_behavior(self, cfg.presentations[data['mandatory_entities'][0]])
+				response = cfg.presentations[data['mandatory_entities'][0]]
+				if callable(response):
+					response = response(data['optional_entities'])
+				behavior_head = get_say_behavior(self, response)
 			else:
 				behavior_head = get_say_behavior(self, cfg.presentations['default'])
+		elif data['intent'] == cfg.HELLO_INTENT:
+			behavior_head = get_say_behavior(self, cfg.hello_response)
 		else:
 			return
 
@@ -60,7 +65,7 @@ class TaskManager:
 
 	def create_task_search(self, target):
 		if target:
-			task = SearchPersonTask(self.vision_manager.search_person,
+			task = SearchPersonTask(self.vision_manager.search_target,
 									self.vision_manager.stop_search,
 									None,
 									None,

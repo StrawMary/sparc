@@ -94,11 +94,11 @@ class SpeechManager:
 		return entities
 
 	def get_optional_entities(self, mandatory_entities, received_entities):
-		entities = []
+		entities = {}
 		for received_entity in received_entities.keys():
 			if received_entity not in mandatory_entities and received_entity != 'intent':
 				for entity in received_entities[received_entity]:
-					entities.append(entity['value'])
+					entities[received_entity] = entity['value']
 		return entities
 
 	def clear_say_attrs(self):

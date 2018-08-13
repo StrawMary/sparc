@@ -24,10 +24,10 @@ def get_go_to_behavior(task_manager, target):
 	say1 = task_manager.create_task_say("Going to " + target)
 	move1 = task_manager.create_task_go_to(target)
 	if not move1:
-		return task_manager.create_task_say("Sorry, I don't know the target")
+		return task_manager.create_task_say("Sorry, I don't know the target's position.")
 
 	say2 = task_manager.create_task_say("Reached " + target)
-	say3 = task_manager.create_task_say("Stopped")
+	say3 = task_manager.create_task_say("Sorry. I failed to reach " + target)
 
 	say1.success_child = move1
 
@@ -37,4 +37,37 @@ def get_go_to_behavior(task_manager, target):
 
 
 def get_find_behavior(task_manager, target):
-	return task_manager.create_task_say("Not implemented yet. I'm sorry!")
+
+	say1 = task_manager.create_task_say("Looking for " + target)
+	say2 = task_manager.create_task_say("I've found " + target)
+	say4 = task_manager.create_task_say("Going to " + target + " home")
+	say3 = task_manager.create_task_say("Sorry. I couldn't find " + target)
+	move1 = task_manager.create_task_go_to(target)
+	move2 = task_manager.create_task_go_to(target + "@")
+	search1 = task_manager.create_task_search(target)
+	search2 = task_manager.create_task_search(target)
+
+	if not move1 and not move2:
+		return task_manager.create_task_say("Sorry I don't know anything about " + target)
+
+	if move2:
+		move2.success_child = search2
+		search2.success_child = say2
+		search2.fail_child = say3
+		move2.fail_child = say3
+		say4.success_child = move2
+
+	if move1:
+		move1.success_child = search1
+		search1.success_child = say2
+		if move2:
+			move1.fail_child = say4
+			search1.fail_child = say4
+		else:
+			move1.fail_child = say3
+			search1.fail_child = say3
+		say1.success_child = move1
+		return say1
+	else:
+		say1.success_child = say4
+		return say1

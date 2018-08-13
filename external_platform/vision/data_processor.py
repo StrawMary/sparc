@@ -108,7 +108,7 @@ class DataProcessor:
                 distance, depth_bbox = self.compute_distance(depth_image, bbox, person['person_bbox'])
             else:
                 distance, depth_bbox = self.compute_distance(segmented_image, bbox, person['person_bbox'], segmented_pixels)
-            
+
             distances.append(distance)
             depth_bboxes.append(depth_bbox)
 
@@ -170,17 +170,18 @@ class DataProcessor:
         object_angles = self.compute_objects_angles(objects)
 
         for i, (_, value, class_id) in enumerate(objects):
-            position = self.get_3d_position(
-                distances[i], 
-                object_angles[i],
-                head_yaw,
-                head_pitch,
-                camera_height
-            )
-            if class_id == 'QRCODE':
-                positions.append((value.lower(), position))
-            else:
-                positions.append((class_id, position))
+            if distances[i] < 5.0:
+                position = self.get_3d_position(
+                    distances[i],
+                    object_angles[i],
+                    head_yaw,
+                    head_pitch,
+                    camera_height
+                )
+                if class_id == 'QRCODE':
+                    positions.append((value.lower(), position))
+                else:
+                    positions.append((class_id, position))
 
         return positions
 
@@ -189,17 +190,18 @@ class DataProcessor:
 
         positions = []
         for i, person in enumerate(people):
-            position = self.get_3d_position(
-                people_distances[i],
-                people_angles[i],
-                head_yaw,
-                head_pitch,
-                camera_height
-            )
-            if 'name' in person:
-                positions.append((people_ids[i], position, person['name'].lower()))
-            else:
-                positions.append((people_ids[i], position))
+            if people_distances[i] < 5.0:
+                position = self.get_3d_position(
+                    people_distances[i],
+                    people_angles[i],
+                    head_yaw,
+                    head_pitch,
+                    camera_height
+                )
+                if 'name' in person:
+                    positions.append((people_ids[i], position, person['name'].lower()))
+                else:
+                    positions.append((people_ids[i], position))
 
         return positions
 
