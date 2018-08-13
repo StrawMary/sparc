@@ -36,8 +36,17 @@ def get_go_to_behavior(task_manager, target):
 	return say1
 
 
-def get_find_behavior(task_manager, target):
+def get_reminders_behavior(task_manager, target):
+	say1 = task_manager.create_task_say("Displaying reminders for " + target)
+	reminders1 = task_manager.create_task_show_reminders(target)
+	if not reminders1:
+		return task_manager.create_task_say("Sorry, I can't do that.")
 
+	say1.success_child = reminders1
+	return say1
+
+
+def get_find_behavior(task_manager, target):
 	say1 = task_manager.create_task_say("Looking for " + target)
 	say2 = task_manager.create_task_say("I've found " + target)
 	say4 = task_manager.create_task_say("Going to " + target + " home")

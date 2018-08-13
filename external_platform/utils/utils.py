@@ -1,7 +1,7 @@
 from weather import Weather, Unit
 from datetime import datetime
 from dateutil import parser
-
+import datetime
 
 # Auxiliary structure for 'time' subject.
 class Dict(dict):
@@ -28,3 +28,5 @@ def get_weather_report(optional_parameters):
 def get_time_presentation(optional_parameters):
 	time = datetime.now()
 	return 'It is ' + str(time.hour) + ' ' + str(time.minute)
+
+

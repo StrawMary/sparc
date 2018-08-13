@@ -15,7 +15,6 @@ class SpeechManager:
 		self.robot_stream = cfg.robot_stream
 		self.on_speech_received = on_speech_received
 
-		self.activated = False
 		self.on_going_say_promise = None
 		self.on_going_say_promise_canceled = False
 		self.on_success = None
@@ -24,34 +23,37 @@ class SpeechManager:
 		if self.robot_stream:
 			self.leds_service = app.session.service("ALLeds")
 			self.speech_service = app.session.service("ALTextToSpeech")
-			self.speech_subscriber = rospy.Publisher('/speech', String, queue_size=10)
-			self.recognition_subscriber = rospy.Subscriber('speech_text', String, self.callback)
+			self.recognition_subscriber = rospy.Subscriber('speech_text', String, self.callback_text)
+			self.commands_subscriber = rospy.Subscriber('/commands_json', String, self.callback_json)
 
-	def callback(self, received_data):
+
+	def callback_text(self, received_data):
 		data = json.loads(received_data.data)
 		if not data['text']:
 			return
 		text = data['text'].strip().lower()
 		language = data['language']
 
-		if text == self.catch_phrase:
-			self.activate()
-			return
-
-		interpreted_speech = self.interpret(text, language)
+		response = self.call_wit(text, language)
+		interpreted_speech = self.interpret(response)
 		if interpreted_speech:
 			self.on_speech_received(interpreted_speech)
 
-		if self.activated:
-			self.deactivate()
+	def callback_json(self, received_data):
+		print(received_data.data)
+		interpreted_speech = self.interpret(json.loads(received_data.data))
+		if interpreted_speech:
+			self.on_speech_received(interpreted_speech)
 
-	def interpret(self, text, language='en-EN'):
+	def call_wit(self, text, language='en-EN'):
 		if not text:
 			return None
 
 		params = {'access_token': cfg.access_keys[language], 'q': text}
 		response = requests.get(url=cfg.URL, params=params).json()
+		return response
 
+	def interpret(self, response):
 		# The response should contain entities associated with the query.
 		if 'entities' not in response:
 			print('API server error: ' + str(response))
@@ -77,7 +79,6 @@ class SpeechManager:
 			'mandatory_entities': mandatory_entities,
 			'optional_entities': optional_entities
 		}
-		print(interpreted_speech)
 		return interpreted_speech
 
 	def check_mandatory_entities(self, mandatory_entities, received_entities):
@@ -110,9 +111,11 @@ class SpeechManager:
 	def say_async_callback(self, data):
 		if not self.on_going_say_promise_canceled:
 			if not data or data.hasError():
-				self.on_fail()
+				if self.on_fail:
+					self.on_fail()
 			else:
-				self.on_success()
+				if self.on_success:
+					self.on_success()
 		self.clear_say_attrs()
 
 	def say_async(self, text, on_success=None, on_fail=None):
@@ -131,13 +134,3 @@ class SpeechManager:
 				self.on_going_say_promise_canceled = True
 				if self.speech_service:
 					self.speech_service.stopAll()
-
-	def activate(self):
-		self.activated = True
-		if self.robot_stream:
-			self.leds_service.fadeRGB('FaceLeds', 'green', self.fade_duration)
-
-	def deactivate(self):
-		self.activated = False
-		if self.robot_stream:
-			self.leds_service.fadeRGB('FaceLeds', "white", self.fade_duration)

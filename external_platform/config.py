@@ -73,6 +73,7 @@ GO_TO_INTENT = 'go to'
 FIND_INTENT = 'find'
 STOP_INTENT = 'stop'
 HELLO_INTENT = 'hello'
+REMINDERS_INTENT = 'reminders'
 
 hello_response = 'hello'
 
@@ -80,6 +81,7 @@ mandatory_intent_entities = {SAY_INTENT: ['target'],
 							 SEARCH_INTENT: ['target'],
 							 GO_TO_INTENT: ['target'],
 							 FIND_INTENT: ['target'],
+							 REMINDERS_INTENT: ['target'],
 							 STOP_INTENT: [],
 							 HELLO_INTENT: []}
 
@@ -103,3 +105,6 @@ default_positions = {
 }
 
 KNOWN_LABELS = {8: 'chair', 10: 'table', 15: 'plant', 17: 'sofa', 19: 'monitor'}
+
+REMINDERS_COUNT_URL = "http://192.168.0.158:3000/remindersCount"
+REMINDERS_URL = "http://192.168.0.158:3000/Reminders/0"

@@ -1,46 +1,54 @@
-import urllib2
+import config as cfg
 import json
+import urllib2
 
-from naoqi import ALProxy
-from threading import Timer
 
-class RemindersChecker:
-    def __init__(self, pepper_ip, pepper_port, url="http://192.168.0.132:3000/RemindersCount"):
-        self.url = url
-        self.ip = pepper_ip
-        self.port = pepper_port
+class RemindersManager:
+    def __init__(self, app, say_method):
+        self.tabletService = app.session.service("ALTabletService")
+        self.say = say_method
+        self.signalID1 = None
+        self.signalID2 = None
+        self.on_fail = None
+        self.on_success = None
 
-        self.behaviour_manager = ALProxy("ALBehaviorManager", self.ip, self.port)
-        self.behaviour_name = "multiplepeopletracker-4591b5/behavior_1"
-        self.stopped = False
+    def get_reminders_count(self, target, on_success=None, on_fail=None):
+        parsed_json = json.loads(urllib2.urlopen(cfg.REMINDERS_COUNT_URL).read())
+        return int(parsed_json["count"])
 
-    def stop(self):
-        self.stopped = True
-        if(self.timer):
-            self.timer.stop()
-        print("Stopping behaviour.")
-        if self.behaviour_manager.isBehaviorRunning(self.behaviour_name):
-            self.behaviour_manager.stopBehavior(self.behaviour_name)
-
-    def start_timer(self, interval):
-        self.timer = Timer(interval, self.check_reminders, ()).start()
-
-    def check_reminders(self):
-        urlStr = urllib2.urlopen(self.url).read()
-        parsed_json = json.loads(urlStr)
-        number_of_reminders = int(parsed_json["count"])
-        if number_of_reminders > 0:
-            print("Found " + str(number_of_reminders) + " new reminders.")
-            self.start_behaviour()
-        if not self.stopped:
-            self.start_timer(600)
-
-    def start_behaviour(self):
-        if self.behaviour_manager.isBehaviorInstalled(self.behaviour_name):
-            if not self.behaviour_manager.isBehaviorRunning(self.behaviour_name):
-                print("Starting behaviour...")
-                self.behaviour_manager.startBehavior(self.behaviour_name)
+    def display_reminders(self, target, on_success=None, on_fail=None):
+        self.on_success = on_success
+        self.on_fail = on_fail
+        if cfg.robot_stream:
+            if self.tabletService:
+                self.signalID1 = self.tabletService.onJSEvent.connect(self.get_reminder)
+                self.signalID2 = self.tabletService.onPageFinished.connect(self.page_finished)
+                self.tabletService.showWebview(cfg.REMINDERS_URL)
             else:
-                print("Behaviour is already running!")
-        else:
-            print("Behaviour is not installed!")
+                self.on_fail()
+                self.clear_attrs()
+
+
+    def get_reminder(self, reminder_text):
+        self.say(reminder_text)
+
+    def page_finished(self):
+        script = """
+            var reminder = document.getElementById("reminderValue").innerText;
+            ALTabletBinding.raiseEvent(reminder);
+        """
+        self.tabletService.executeJS(script)
+
+    def get_target_id_for_person(self, target):
+        return 0
+
+    def clear_display(self):
+        self.tabletService.onPageFinished.disconnect(self.signalID1)
+        self.tabletService.onJSEvent.disconnect(self.signalID2)
+        if self.tabletService:
+            self.tabletService.hideWebview()
+            self.clear_attrs()
+
+    def clear_attrs(self):
+        self.on_success = None
+        self.on_fail = None

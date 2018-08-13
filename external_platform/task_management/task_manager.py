@@ -8,7 +8,7 @@ from robot_interaction.speech_recognition_subscriber import SpeechManager
 from task_management.task import TaskStatus, MoveToTask, SayTask, SearchPersonTask, ShowRemindersTask
 from task_management.behaviors import *
 from vision.vision_manager import VisionManager
-
+from robot_interaction.reminders import RemindersManager
 
 class TaskType(Enum):
 	GO_TO = 1
@@ -23,6 +23,7 @@ class TaskManager:
 		self.speech_manager = SpeechManager(app, self.create_behavior)
 		self.navigation_manager = NavigationManager()
 		self.pose_manager = PepperPoseManager()
+		self.reminders_manager = RemindersManager(app, self.speech_manager.say_async)
 		self.current_task = None
 
 	def create_behavior(self, data):
@@ -36,6 +37,8 @@ class TaskManager:
 			behavior_head = get_go_to_behavior(self, data['mandatory_entities'][0])
 		elif data['intent'] == cfg.FIND_INTENT:
 			behavior_head = get_find_behavior(self, data['mandatory_entities'][0])
+		elif data['intent'] == cfg.REMINDERS_INTENT:
+			behavior_head = get_reminders_behavior(self, data['mandatory_entities'][0])
 		elif data['intent'] == cfg.SAY_INTENT:
 			if data['mandatory_entities'][0] in cfg.presentations:
 				response = cfg.presentations[data['mandatory_entities'][0]]
@@ -87,15 +90,15 @@ class TaskManager:
 			return task
 		return None
 
-	def create_task_show_reminders(self, url):
-		if url:
-			task = ShowRemindersTask(None,
-									 None,
+	def create_task_show_reminders(self, target):
+		if target:
+			task = ShowRemindersTask(self.reminders_manager.display_reminders,
+									 self.reminders_manager.clear_display,
 									 None,
 									 None,
 									 self.add_task_to_queue,
 									 cfg.SHOW_REMINDERS_PRIOR,
-									 url)
+									 self.reminders_manager.get_target_id_for_person(target))
 			return task
 		return None
 
