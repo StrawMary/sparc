@@ -60,7 +60,8 @@ SAY_PRIOR = 1
 SEARCH_PRIOR = 2
 GO_TO_PRIOR = 3
 FIND_PRIOR = 4
-SHOW_REMINDERS_PRIOR = 5
+SHOW_REMINDERS_PRIOR = 1
+HEALTH_PRIOR = 1
 
 # Wit.ai api params.
 URL = 'https://api.wit.ai/message'
@@ -74,7 +75,9 @@ FIND_INTENT = 'find'
 STOP_INTENT = 'stop'
 HELLO_INTENT = 'hello'
 REMINDERS_INTENT = 'reminders'
-
+NEXT_INTENT = 'next'
+PREVIOUS_INTENT = 'previous'
+HEALTH_INTENT = 'health'
 hello_response = 'hello'
 
 mandatory_intent_entities = {SAY_INTENT: ['target'],
@@ -82,6 +85,9 @@ mandatory_intent_entities = {SAY_INTENT: ['target'],
 							 GO_TO_INTENT: ['target'],
 							 FIND_INTENT: ['target'],
 							 REMINDERS_INTENT: ['target'],
+							 NEXT_INTENT: [],
+							 PREVIOUS_INTENT: [],
+							 HEALTH_INTENT: ['health_entity'],
 							 STOP_INTENT: [],
 							 HELLO_INTENT: []}
 
@@ -103,6 +109,16 @@ default_positions = {
 	'stephanie': [6.0, 6.7, 1],
 	'home': [5.5, 10.0, 0]
 }
+
+HEALTH_MEASUREMENTS_URL = {
+	'heart': "http://192.168.0.158:3000/HeartRate",
+	'blood_pressure': "http://192.168.0.158:3000/BloodPressure",
+	'steps': "http://192.168.0.158:3000/Steps",
+	'weight': "http://192.168.0.158:3000/Weight",
+	'sleep': "http://192.168.0.158:3000/Sleep"
+}
+
+TIME_SHOWING_HEALTH_MEASUREMENTS = 5
 
 KNOWN_LABELS = {8: 'chair', 10: 'table', 15: 'plant', 17: 'sofa', 19: 'monitor'}
 

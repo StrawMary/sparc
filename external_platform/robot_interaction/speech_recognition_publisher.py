@@ -55,9 +55,10 @@ class SpeechRecognizer:
 		try:
 			while not rospy.is_shutdown():
 				speech = self.recognize_speech()
-				print(speech)
-				self.publisher.publish(json.dumps(speech))
-				self.rate.sleep()
+				if speech and speech['text']:
+					print(speech)
+					self.publisher.publish(json.dumps(speech))
+					self.rate.sleep()
 
 		except KeyboardInterrupt:
 			print('Forced interruption by user, shutting down...')

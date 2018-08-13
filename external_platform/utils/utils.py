@@ -22,7 +22,7 @@ def get_weather_report(optional_parameters):
 	for forecast in forecasts:
 		dt = parser.parse(forecast.date)
 		if dt.day == date.day and dt.month == date.month and dt.year == date.year:
-			return 'It will be ' + forecast.text + ' with a minimum of ' + forecast.low + ' and a maximum of ' + forecast.high + ' celsius degrees'
+			return 'It will be ' + forecast.text + '. The maximum temperature is ' + forecast.high + ' degrees celsius'
 
 
 def get_time_presentation(optional_parameters):

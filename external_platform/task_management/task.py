@@ -45,7 +45,7 @@ class SearchPersonTask(ITask):
         return '\n%s: \tPrior: %d \tStatus: %s \tPerson: %s' % (self.__class__.__name__, self.priority, str(self.status), self.name)
 
 
-class ShowRemindersTask(ITask):
+class ShowURLTask(ITask):
     def __init__(self, run_method, stop_method, success_child, fail_child, add_to_queue_method, priority, url):
         ITask.__init__(self, run_method, stop_method, success_child, fail_child, add_to_queue_method, priority)
         self.url = url
@@ -56,3 +56,5 @@ class ShowRemindersTask(ITask):
 
     def stringify(self):
         return '\n%s: \tPrior: %d \tStatus: %s \tURL: %s' % (self.__class__.__name__, self.priority, str(self.status), self.url)
+
+

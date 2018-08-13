@@ -198,7 +198,10 @@ class VisionManager:
 					self.stop_search(external_stop=False)
 					return
 			for obj in objects:
-				if obj[1] in cfg.KNOWN_LABELS and cfg.KNOWN_LABELS[obj[1]].lower() == self.searched_target.lower():
+				print(obj[2])
+				print(cfg.KNOWN_LABELS[obj[2]].lower())
+				print(self.searched_target.lower())
+				if obj[2] in cfg.KNOWN_LABELS and cfg.KNOWN_LABELS[obj[2]].lower() == self.searched_target.lower():
 					self.found_searched_target = True
 					self.stop_search(external_stop=False)
 					return

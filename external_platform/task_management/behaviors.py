@@ -46,6 +46,16 @@ def get_reminders_behavior(task_manager, target):
 	return say1
 
 
+def get_health_behaviour(task_manager, target):
+	say1 = task_manager.create_task_say("Showing health status")
+	reminders1 = task_manager.create_task_show_health_measurements(target)
+	if not reminders1:
+		return task_manager.create_task_say("Sorry, I can't do that.")
+
+	say1.success_child = reminders1
+	return say1
+
+
 def get_find_behavior(task_manager, target):
 	say1 = task_manager.create_task_say("Looking for " + target)
 	say2 = task_manager.create_task_say("I've found " + target)

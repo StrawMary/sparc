@@ -26,5 +26,5 @@ class QRCodesHandler:
         lab_303 = pyqrcode.create('lab_303')
         lab_303.png('./qr_codes/lab_303.png', scale=20)
 
-        elevators = pyqrcode.create('elevators')
-        elevators.png('./qr_codes/elevators.png', scale=20)
+        elevators = pyqrcode.create('lifts')
+        elevators.png('./qr_codes/lifts.png', scale=20)

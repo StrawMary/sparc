@@ -79,6 +79,7 @@ class SpeechManager:
 			'mandatory_entities': mandatory_entities,
 			'optional_entities': optional_entities
 		}
+		print(interpreted_speech)
 		return interpreted_speech
 
 	def check_mandatory_entities(self, mandatory_entities, received_entities):
@@ -123,6 +124,7 @@ class SpeechManager:
 			self.on_success = on_success
 			self.on_fail = on_fail
 			if text:
+				text = text.encode("ascii","ignore")
 				self.on_going_say_promise = self.speech_service.say(str(text), "English", _async=True)
 				self.on_going_say_promise.addCallback(self.say_async_callback)
 			else:
