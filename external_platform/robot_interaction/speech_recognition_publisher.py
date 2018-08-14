@@ -46,8 +46,9 @@ class SpeechRecognizer:
 				response['error'] = 'Unable to recognize speech'
 		else:
 			response['text'] = raw_input("Query: ")
-			if response['text'] == 'exit':
-				exit(0)
+
+		if response['text'] and response['text'].lower() == 'exit':
+			exit(0)
 
 		return response
 

@@ -84,7 +84,7 @@ class NavigationManager:
 
 				old_angles = tf.transformations.euler_from_quaternion((goal.pose.orientation.x, goal.pose.orientation.y,
 																	  goal.pose.orientation.z, goal.pose.orientation.w))
-				q = tf.transformations.quaternion_from_euler(old_angles[0], old_angles[1], angle + math.radians(180))
+				q = tf.transformations.quaternion_from_euler(old_angles[0], old_angles[1], angle)
 				goal.pose.orientation.x = q[0]
 				goal.pose.orientation.y = q[1]
 				goal.pose.orientation.z = q[2]
@@ -207,7 +207,7 @@ class NavigationManager:
 					lifetime=rospy.Duration(2.0),
 					pose=deepcopy(position.pose),
 					scale=Vector3(0.2, 0.2, 0.2),
-					header=Header(frame_id='odom'),
+					header=Header(frame_id='map'),
 					color=cfg.colors[self.encountered_positions[label][0]],
 					text=label)
 				markers.append(marker)
@@ -219,7 +219,7 @@ class NavigationManager:
 					lifetime=rospy.Duration(2.0),
 					pose=position.pose,
 					scale=Vector3(0.2, 0.2, 0.2),
-					header=Header(frame_id='odom'),
+					header=Header(frame_id='map'),
 					color=cfg.colors[self.encountered_positions[label][0]],
 					text=label
 				)
@@ -262,8 +262,8 @@ class NavigationManager:
 			pose.header.frame_id = 'map'
 		pose.pose = loc
 
-		pose_in_map = listener.transformPose('/odom', pose)
-		pose_in_map.header.frame_id = 'odom'
+		pose_in_map = listener.transformPose('/map', pose)
+		pose_in_map.header.frame_id = 'map'
 
 		start_time = time.time()
 

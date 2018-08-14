@@ -17,14 +17,18 @@ class QRCodesHandler:
 
 
     def generate_QRcodes(self):
-        bathroom = pyqrcode.create('bathroom')
-        bathroom.png('./qr_codes/bathroom.png', scale=20)
+        lab306 = pyqrcode.create('hydrant')
+        lab306.png('./qr_codes/hydrant.png', scale=20)
 
-        lab_308 = pyqrcode.create('lab_308')
-        lab_308.png('./qr_codes/lab_308.png', scale=20)
+        lab308 = pyqrcode.create('lab308')
+        lab308.png('./qr_codes/lab308.png', scale=20)
 
-        lab_303 = pyqrcode.create('lab_303')
-        lab_303.png('./qr_codes/lab_303.png', scale=20)
+        lab303 = pyqrcode.create('lab303')
+        lab303.png('./qr_codes/lab303.png', scale=20)
 
-        elevators = pyqrcode.create('lifts')
-        elevators.png('./qr_codes/lifts.png', scale=20)
+        lifts = pyqrcode.create('lifts')
+        lifts.png('./qr_codes/lifts.png', scale=20)
+
+if __name__ == '__main__':
+    handler = QRCodesHandler()
+    handler.generate_QRcodes()
