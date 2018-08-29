@@ -207,7 +207,7 @@ class NavigationManager:
 					lifetime=rospy.Duration(2.0),
 					pose=deepcopy(position.pose),
 					scale=Vector3(0.2, 0.2, 0.2),
-					header=Header(frame_id='map'),
+					header=Header(frame_id='odom'),
 					color=cfg.colors[self.encountered_positions[label][0]],
 					text=label)
 				markers.append(marker)
@@ -219,7 +219,7 @@ class NavigationManager:
 					lifetime=rospy.Duration(2.0),
 					pose=position.pose,
 					scale=Vector3(0.2, 0.2, 0.2),
-					header=Header(frame_id='map'),
+					header=Header(frame_id='odom'),
 					color=cfg.colors[self.encountered_positions[label][0]],
 					text=label
 				)
@@ -262,8 +262,8 @@ class NavigationManager:
 			pose.header.frame_id = 'map'
 		pose.pose = loc
 
-		pose_in_map = listener.transformPose('/map', pose)
-		pose_in_map.header.frame_id = 'map'
+		pose_in_map = listener.transformPose('/odom', pose)
+		pose_in_map.header.frame_id = 'odom'
 
 		start_time = time.time()
 
