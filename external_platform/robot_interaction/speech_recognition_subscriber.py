@@ -2,6 +2,7 @@ import config as cfg
 import json
 import rospy
 import requests
+import threading
 
 from std_msgs.msg import String
 
@@ -17,6 +18,7 @@ class SpeechManager:
 		self.on_going_say_promise_canceled = False
 		self.on_success = None
 		self.on_fail = None
+		self.timer = None
 
 		if self.robot_stream:
 			self.leds_service = app.session.service("ALLeds")
@@ -135,8 +137,8 @@ class SpeechManager:
 			else:
 				on_fail()
 		else:
-			if on_success:
-				on_success()
+			self.timer = threading.Timer(5, self.on_timeout, [on_success])
+			self.timer.start()
 
 	def stop_async(self):
 		if self.robot_stream:
@@ -144,3 +146,12 @@ class SpeechManager:
 				self.on_going_say_promise_canceled = True
 				if self.speech_service:
 					self.speech_service.stopAll()
+		else:
+			if self.timer:
+				self.timer.cancel()
+			self.timer = None
+
+	def on_timeout(self, on_success):
+		self.timer = None
+		if on_success:
+			on_success()

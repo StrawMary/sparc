@@ -67,8 +67,8 @@ SAY_PRIOR = 1
 SEARCH_PRIOR = 2
 GO_TO_PRIOR = 3
 FIND_PRIOR = 4
-SHOW_REMINDERS_PRIOR = 1
-HEALTH_PRIOR = 1
+HEALTH_PRIOR = 100
+SHOW_REMINDERS_PRIOR = 100
 
 # Wit.ai api params.
 URL = 'https://api.wit.ai/message'
@@ -130,4 +130,4 @@ TIME_SHOWING_HEALTH_MEASUREMENTS = 5
 KNOWN_LABELS = {8: 'chair', 10: 'table', 15: 'plant', 17: 'sofa', 19: 'monitor'}
 
 REMINDERS_COUNT_URL = "http://192.168.0.158:3000/remindersCount"
-REMINDERS_URL = "http://192.168.0.158:3000/Reminders/0"
+REMINDERS_URL = "http://192.168.0.158:3000/Reminders"

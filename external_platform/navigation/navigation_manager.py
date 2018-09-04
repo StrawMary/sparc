@@ -6,6 +6,7 @@ import random
 import rospy
 import tf
 import tf2_ros
+import threading
 import time
 
 from actionlib_msgs.msg import GoalStatusArray, GoalID
@@ -50,6 +51,7 @@ class NavigationManager:
 		self.listener = tf.TransformListener()
 		self.goal_ids = []
 		self.move_action_feedback = None
+		self.timer = None
 
 	def get_move_action_status(self, data):
 		if data:
@@ -95,17 +97,18 @@ class NavigationManager:
 			self.on_success = on_success
 			self.on_fail = on_fail
 		else:
-			if random.random() < 0.5:
-				if on_success:
-					on_success()
-			else:
-				if on_fail:
-					on_fail()
+			self.timer = threading.Timer(10, self.on_timeout, [on_success, on_fail])
+			self.timer.start()
 
 	def stop_movement(self):
-		for goal_id in self.goal_ids:
-			self.cancel_publisher.publish(goal_id)
-		self.goal_ids = []
+		if cfg.robot_stream:
+			for goal_id in self.goal_ids:
+				self.cancel_publisher.publish(goal_id)
+			self.goal_ids = []
+		else:
+			if self.timer:
+				self.timer.cancel()
+			self.timer = None
 
 	def is_located(self, key):
 		return key in self.encountered_positions or key + '@' in self.encountered_positions
@@ -317,5 +320,14 @@ class NavigationManager:
 
 	def shut_down(self):
 		self.save_positions_to_file()
+
+	def on_timeout(self, on_success, on_fail):
+		self.timer = None
+		if random.random() < 0.5:
+			if on_success:
+				on_success()
+		else:
+			if on_fail:
+				on_fail()
 
 

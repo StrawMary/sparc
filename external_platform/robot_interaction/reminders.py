@@ -17,7 +17,7 @@ class RemindersManager:
         self.running = False
 
     def on_interaction_intent(self, intent):
-        if self.running:
+        if cfg.robot_stream and self.running:
             if intent == cfg.NEXT_INTENT or intent == cfg.PREVIOUS_INTENT:
                 script = "document.getElementById(\"" + intent + "\").submit()"
                 self.tabletService.executeJS(script)
@@ -32,17 +32,19 @@ class RemindersManager:
             self.on_fail = on_fail
             if self.tabletService:
                 self.tabletService.showWebview(url)
-                self.timer = threading.Timer(cfg.TIME_SHOWING_HEALTH_MEASUREMENTS, self.on_timeout, [on_success]).start()
+                self.timer = threading.Timer(cfg.TIME_SHOWING_HEALTH_MEASUREMENTS, self.on_timeout, [on_success])
+                self.timer.start()
             else:
                 self.on_fail()
                 self.clear_attrs()
         else:
-            if on_success:
-                on_success()
+            self.timer = threading.Timer(10, self.on_timeout, [on_success])
+            self.timer.start()
 
     def on_timeout(self, on_success):
         self.timer = None
-        on_success()
+        if on_success:
+            on_success()
         self.clear_display()
 
     def display_reminders(self, target, on_success=None, on_fail=None):
@@ -53,13 +55,10 @@ class RemindersManager:
             if self.tabletService:
                 self.signalID1 = self.tabletService.onJSEvent.connect(self.get_reminder)
                 self.signalID2 = self.tabletService.onPageFinished.connect(self.page_finished)
-                self.tabletService.showWebview(cfg.REMINDERS_URL)
+                self.tabletService.showWebview(target + '/0')
             else:
                 self.on_fail()
                 self.clear_attrs()
-        else:
-            if on_success:
-                on_success()
 
     def get_url_for_target(self, target):
         if target in cfg.HEALTH_MEASUREMENTS_URL:
@@ -75,13 +74,14 @@ class RemindersManager:
         """
         self.tabletService.executeJS(script)
 
-    def get_target_id_for_person(self, target):
-        return 0
+    def get_url_for_person(self, target):
+        return cfg.REMINDERS_URL
 
     def clear_display(self):
+        if self.timer:
+            self.timer.cancel()
+        self.timer = None
         if cfg.robot_stream:
-            if self.timer:
-                self.timer.cancel()
             if self.signalID2 and self.signalID1:
                 self.tabletService.onPageFinished.disconnect(self.signalID1)
                 self.tabletService.onJSEvent.disconnect(self.signalID2)

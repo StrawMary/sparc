@@ -10,8 +10,10 @@ import qi
 
 class PepperPoseManager:
 	def __init__(self, ip=cfg.ip, port=cfg.port):
-		self.posture = ALProxy('ALRobotPosture', ip, port)
+		if cfg.robot_stream:
+			self.posture = ALProxy('ALRobotPosture', ip, port)
 
 	def stand_init(self):
-		self.posture.goToPosture('StandInit', 1.0)
+		if cfg.robot_stream:
+			self.posture.goToPosture('StandInit', 1.0)
 

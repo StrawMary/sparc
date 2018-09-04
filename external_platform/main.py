@@ -52,7 +52,7 @@ class Main(object):
 					display_time = time.time()
 					print("--- rviz display: \t %s seconds ---" % (display_time - vision_time))
 				if self.task_manager.current_task:
-					print('CTask:' + str(self.task_manager.current_task))
+					print('CTask: ' + str(self.task_manager.current_task))
 				if self.task_manager.ongoing_tasks:
 					print('Queue: '+ str(self.task_manager.ongoing_tasks))
 					print('')

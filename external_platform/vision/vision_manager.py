@@ -1,6 +1,7 @@
 import config as cfg
 import cv2
 import random
+import threading
 import time
 
 from vision.data_processor import DataProcessor
@@ -32,6 +33,7 @@ class VisionManager:
 		self.on_fail = None
 		self.on_going_say_promise = None
 		self.on_going_say_promise_canceled = False
+		self.timer = None
 
 		if self.robot_stream:
 			self.image_provider = ImageProvider(cfg.ip, cfg.port, cfg.frameRate)
@@ -228,12 +230,17 @@ class VisionManager:
 			self.on_going_say_promise = self.behavior_manager.runBehavior("movehead001/behavior_1", _async=True)
 			self.on_going_say_promise.addCallback(self.move_head_callback)
 		else:
-			if random.random() < 0.5:
-				if on_success:
-					on_success()
-			else:
-				if on_fail:
-					on_fail()
+			self.timer = threading.Timer(5, self.on_timeout, [on_success, on_fail])
+			self.timer.start()
+
+	def on_timeout(self, on_success, on_fail):
+		self.timer = None
+		if random.random() < 0.5:
+			if on_success:
+				on_success()
+		else:
+			if on_fail:
+				on_fail()
 
 	def stop_search(self, external_stop=True):
 		if self.robot_stream:
@@ -243,3 +250,7 @@ class VisionManager:
 					self.behavior_manager.stopBehavior("movehead001/behavior_1")
 				if external_stop:
 					self.pose_manager.stand_init()
+		else:
+			if self.timer:
+				self.timer.cancel()
+			self.timer = None
