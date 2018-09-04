@@ -2,27 +2,19 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow as tf
-from scipy import misc
 import config as cfg
 import cv2
-import matplotlib.pyplot as plt
 import numpy as np
-import argparse
-from . import facenet
-from .import detect_face
 import os
-from os.path import join as pjoin
-import sys
-import time
-import copy
-import math
 import pickle
-from sklearn.svm import SVC
-from sklearn.externals import joblib
+import tensorflow as tf
+from scipy import misc
+from . import facenet
+from . import detect_face
 
-folder_path = 'vision/facenet/'
+folder_path = os.path.join(cfg.project_path, 'external_platform/vision/facenet/')
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+
 
 class FaceNetDetector:
     def __init__(self, confidence_threshold=cfg.faces_recognition_threshold):
@@ -59,6 +51,7 @@ class FaceNetDetector:
                 classifier_filename_exp = os.path.expanduser(classifier_filename)
                 with open(classifier_filename_exp, 'rb') as infile:
                     (self.model, class_names) = pickle.load(infile)
+            self.detect(cv2.imread(os.path.join(folder_path, 'input_dir/load_image.png')))
         print('Loaded model succeded.')
 
     def detect_face(self, frame):
@@ -74,8 +67,6 @@ class FaceNetDetector:
 
     def detect(self, frame):
         result = []
-
-        start_time = time.time()
 
         bboxes = self.detect_face(frame)
 

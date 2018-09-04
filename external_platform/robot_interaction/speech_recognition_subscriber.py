@@ -1,10 +1,8 @@
 import config as cfg
 import json
-import multiprocessing as mp
 import rospy
 import requests
 
-from naoqi import ALProxy
 from std_msgs.msg import String
 
 
@@ -23,6 +21,7 @@ class SpeechManager:
 		if self.robot_stream:
 			self.leds_service = app.session.service("ALLeds")
 			self.speech_service = app.session.service("ALTextToSpeech")
+		if self.robot_stream or cfg.receive_commands:
 			self.recognition_subscriber = rospy.Subscriber('speech_text', String, self.callback_text)
 			self.commands_subscriber = rospy.Subscriber('/commands_json', String, self.callback_json)
 
@@ -79,8 +78,14 @@ class SpeechManager:
 			'mandatory_entities': mandatory_entities,
 			'optional_entities': optional_entities
 		}
-		print(interpreted_speech)
+		self.print_interpreted_speech(interpreted_speech)
 		return interpreted_speech
+
+	def print_interpreted_speech(self, interpreted_speech):
+		print('\nInterpreted speech:')
+		print('\tIntent: ' + str(interpreted_speech['intent']))
+		print('\tEntities - mandatory: ' + str(interpreted_speech['mandatory_entities']))
+		print('\t            optional: ' + str(interpreted_speech['optional_entities']))
 
 	def check_mandatory_entities(self, mandatory_entities, received_entities):
 		for entity in mandatory_entities:
@@ -124,11 +129,14 @@ class SpeechManager:
 			self.on_success = on_success
 			self.on_fail = on_fail
 			if text:
-				text = text.encode("ascii","ignore")
+				text = text.encode("ascii", "ignore")
 				self.on_going_say_promise = self.speech_service.say(str(text), "English", _async=True)
 				self.on_going_say_promise.addCallback(self.say_async_callback)
 			else:
 				on_fail()
+		else:
+			if on_success:
+				on_success()
 
 	def stop_async(self):
 		if self.robot_stream:

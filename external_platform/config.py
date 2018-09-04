@@ -3,7 +3,8 @@ from std_msgs.msg import ColorRGBA
 from subject_presentations import *
 from utils.utils import *
 # Receive or send data to the robot
-robot_stream = True
+robot_stream = False
+receive_commands = True
 send_data = False
 
 # Show images and positions.
@@ -19,6 +20,12 @@ ip_local = '172.19.11.65'
 ip = ip_fast
 port = 9559
 frameRate = 30
+
+# Project path
+project_path = '/home/sparc-308/workspace/sparc/'
+
+# NaoQI path
+naoqi_path = '/home/sparc-308/workspace/stefania/pynaoqi-python2.7/lib/python2.7/site-packages'
 
 # Camera fields of view information.
 width = 640

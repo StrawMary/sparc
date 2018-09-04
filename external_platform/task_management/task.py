@@ -11,7 +11,7 @@ class SayTask(ITask):
         self.run_method(self.text, self.on_success, self.on_fail)
 
     def stringify(self):
-        return '\n%s: \tPrior: %d \tStatus: %s \tText: %s' % (self.__class__.__name__, self.priority, str(self.status), self.text[:20])
+        return '\n\t%16s: Prior=%d Status=%-20s Target=%s' % (self.__class__.__name__, self.priority, str(self.status), self.text if len(self.text) < 20 else self.text[:17] + '...')
 
 
 class MoveToTask(ITask):
@@ -29,7 +29,7 @@ class MoveToTask(ITask):
             position = '(%.2f %.2f %.2f)' % (position.x, position.y, position.z)
         else:
             position = 'none'
-        return '\n%s: \tPrior: %d \tStatus: %s \tTarget: %s' % (self.__class__.__name__, self.priority, str(self.status), position)
+        return '\n\t%16s: Prior=%d Status=%-20s Target=%s' % (self.__class__.__name__, self.priority, str(self.status), position)
 
 
 class SearchPersonTask(ITask):
@@ -42,7 +42,7 @@ class SearchPersonTask(ITask):
         self.run_method(self.name, self.on_success, self.on_fail)
 
     def stringify(self):
-        return '\n%s: \tPrior: %d \tStatus: %s \tPerson: %s' % (self.__class__.__name__, self.priority, str(self.status), self.name)
+        return '\n\t%16s: Prior=%d Status=%-20s Target=%s' % (self.__class__.__name__, self.priority, str(self.status), self.name)
 
 
 class ShowURLTask(ITask):
@@ -55,6 +55,6 @@ class ShowURLTask(ITask):
         self.run_method(self.url, self.on_success, self.on_fail)
 
     def stringify(self):
-        return '\n%s: \tPrior: %d \tStatus: %s \tURL: %s' % (self.__class__.__name__, self.priority, str(self.status), self.url)
+        return '\n\t%16s: Prior=%d Status=%-20s Target=%s' % (self.__class__.__name__, self.priority, str(self.status), self.url)
 
 

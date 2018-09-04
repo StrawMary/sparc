@@ -1,8 +1,8 @@
 import config as cfg
 import cv2
+import random
 import time
 
-from navigation.pose_manager import PepperPoseManager
 from vision.data_processor import DataProcessor
 from vision.facenet.face_detector_recognizer import FaceNetDetector
 from vision.image_provider.image_provider import ImageProvider
@@ -13,7 +13,11 @@ from vision.yolo2.people_detector import PeopleDetector
 
 
 class VisionManager:
-	def __init__(self, app):
+	def __init__(self, app, robot_stream=cfg.robot_stream, display_images=cfg.display_images, debug_mode=cfg.debug_mode):
+		self.robot_stream = robot_stream
+		self.display_images = display_images
+		self.debug_mode = debug_mode
+
 		self.people_detector = PeopleDetector()
 		self.tracker = Tracker()
 		self.segmentation = Segmentation()
@@ -22,7 +26,6 @@ class VisionManager:
 		self.data_processor = DataProcessor()
 		self.running = True
 
-		self.pose_manager = PepperPoseManager()
 		self.searched_target = None
 		self.found_searched_target = False
 		self.on_success = None
@@ -30,7 +33,7 @@ class VisionManager:
 		self.on_going_say_promise = None
 		self.on_going_say_promise_canceled = False
 
-		if cfg.robot_stream:
+		if self.robot_stream:
 			self.image_provider = ImageProvider(cfg.ip, cfg.port, cfg.frameRate)
 			self.image_provider.connect()
 			self.behavior_manager = app.session.service("ALBehaviorManager")
@@ -38,9 +41,9 @@ class VisionManager:
 			self.camera = cv2.VideoCapture(-1)
 
 	def detect(self):
-		if cfg.debug_mode:
+		if self.debug_mode:
 			start_time = time.time()
-		if cfg.robot_stream:
+		if self.robot_stream:
 			image, depth_image, camera_height, head_yaw, head_pitch = self.image_provider.get_cv_image()
 			self.image_provider.release_image()
 		else:
@@ -50,7 +53,7 @@ class VisionManager:
 			head_yaw = 0
 			head_pitch = 0
 
-		if cfg.debug_mode:
+		if self.debug_mode:
 			aq_time = time.time()
 			print("\t image getter: \t %s seconds" % (aq_time - start_time))
 
@@ -58,42 +61,42 @@ class VisionManager:
 		people_bboxes, people_scores, objects = self.people_detector.detect(image)
 		self.data_processor.square_detections(people_bboxes)
 
-		if cfg.debug_mode:
+		if self.debug_mode:
 			yolo_time = time.time()
 			print("\t\t yolo: \t %s seconds" % (yolo_time - aq_time))
 
 		# Segment humans in detections.
 		segmented_image, mask = self.segmentation.segment_people_bboxes(image, people_bboxes)
 
-		if cfg.debug_mode:
+		if self.debug_mode:
 			segmentation_time = time.time()
 			print("\t\t segmentation: \t %s seconds" % (segmentation_time - yolo_time))
 
 		# Check for QR codes.
 		qrcodes = self.qrcodes_handler.detect_QRcodes(image)
 
-		if cfg.debug_mode:
+		if self.debug_mode:
 			qr_time = time.time()
 			print("\t\t qr codes: \t %s seconds" % (qr_time - segmentation_time))
 
 		# Compute people IDs.
 		people_ids = self.tracker.update_ids(people_bboxes, people_scores)
 
-		if cfg.debug_mode:
+		if self.debug_mode:
 			track_time = time.time()
 			print("\t\t sort: \t %s seconds" % (track_time - qr_time))
 
 		# Use FaceNet to detect and recognize faces in RGB image.
 		faces = self.face_detector.detect(image)
 
-		if cfg.debug_mode:
+		if self.debug_mode:
 			facenet_time = time.time()
 			print("\t\t facenet: \t %s seconds" % (facenet_time - track_time))
 
 		# Associate detected faces with detected people.
 		people = self.data_processor.associate_faces_to_people(people_bboxes, faces)
 
-		if cfg.debug_mode:
+		if self.debug_mode:
 			association_time = time.time()
 			print("\t\t association: \t %s seconds" % (association_time - facenet_time))
 			nets_time = time.time()
@@ -140,38 +143,38 @@ class VisionManager:
 
 		self.check_detected_target(people, qrcodes, objects)
 
-		if cfg.debug_mode:
+		if self.debug_mode:
 			pos_time = time.time()
 			print("\t 3d positions: \t %s seconds" % (pos_time - nets_time))
 
-		if cfg.display_images:
+		if self.display_images:
 			# Show detections on RGB and depth images and display detections in RViz.
 			image = self.people_detector.draw_people_detections(image, people_bboxes, people_scores, people_ids,
 																people_distances)
 			image = self.people_detector.draw_object_detections(image, objects, object_distances)
 			image = self.people_detector.draw_object_detections(image, qrcodes, qrcodes_distances)
 			image = self.face_detector.draw_detections(image, faces)
-			# depth_image = self.data_processor.draw_squares(depth_image, people_depth_bboxes)
-			# cv2.imshow('Segmented', segmented_image)
-			# cv2.imshow('Depth', depth_image)
+			depth_image = self.data_processor.draw_squares(depth_image, people_depth_bboxes)
+			cv2.imshow('Segmented', segmented_image)
+			cv2.imshow('Depth', depth_image)
 			cv2.imshow('Image', image)
 			key = cv2.waitKey(1)
 			if key == 27:  # Esc key to stop
 				print('Script interrupted by user, shutting down...')
 				self.running = False
 
-			if cfg.debug_mode:
+			if self.debug_mode:
 				print("\t display image: \t %s seconds" % (time.time() - pos_time))
 
 		return people_3d_positions, objects_3d_positions, qrcodes_3d_positions
 
 	def shut_down(self):
-		if cfg.robot_stream:
+		if self.robot_stream:
 			self.image_provider.disconnect()
 		else:
 			self.camera.release()
 
-		if cfg.debug_mode:
+		if self.debug_mode:
 			cv2.destroyAllWindows()
 
 	def is_running(self):
@@ -217,15 +220,23 @@ class VisionManager:
 		if not target:
 			on_fail()
 
-		self.searched_target = target
-		self.on_success = on_success
-		self.on_fail = on_fail
+		if cfg.robot_stream:
+			self.searched_target = target
+			self.on_success = on_success
+			self.on_fail = on_fail
 
-		self.on_going_say_promise = self.behavior_manager.runBehavior("movehead001/behavior_1", _async=True)
-		self.on_going_say_promise.addCallback(self.move_head_callback)
+			self.on_going_say_promise = self.behavior_manager.runBehavior("movehead001/behavior_1", _async=True)
+			self.on_going_say_promise.addCallback(self.move_head_callback)
+		else:
+			if random.random() < 0.5:
+				if on_success:
+					on_success()
+			else:
+				if on_fail:
+					on_fail()
 
 	def stop_search(self, external_stop=True):
-		if cfg.robot_stream:
+		if self.robot_stream:
 			if self.on_going_say_promise:
 				self.on_going_say_promise_canceled = external_stop
 				if self.behavior_manager and self.behavior_manager.isBehaviorRunning("movehead001/behavior_1"):

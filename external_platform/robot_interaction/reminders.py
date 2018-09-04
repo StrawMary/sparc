@@ -1,12 +1,13 @@
 import config as cfg
 import json
-import urllib2
 import threading
+import urllib2
 
 
 class RemindersManager:
     def __init__(self, app, say_method):
-        self.tabletService = app.session.service("ALTabletService")
+        if cfg.robot_stream:
+            self.tabletService = app.session.service("ALTabletService")
         self.say = say_method
         self.signalID1 = None
         self.signalID2 = None
@@ -16,11 +17,9 @@ class RemindersManager:
         self.running = False
 
     def on_interaction_intent(self, intent):
-        print(intent + ' ' + str(self.running))
         if self.running:
             if intent == cfg.NEXT_INTENT or intent == cfg.PREVIOUS_INTENT:
                 script = "document.getElementById(\"" + intent + "\").submit()"
-                print(script)
                 self.tabletService.executeJS(script)
 
     def get_reminders_count(self, target, on_success=None, on_fail=None):
@@ -28,15 +27,18 @@ class RemindersManager:
         return int(parsed_json["count"])
 
     def display_health(self, url, on_success=None, on_fail=None):
-        self.on_success = on_success
-        self.on_fail = on_fail
         if cfg.robot_stream:
+            self.on_success = on_success
+            self.on_fail = on_fail
             if self.tabletService:
                 self.tabletService.showWebview(url)
                 self.timer = threading.Timer(cfg.TIME_SHOWING_HEALTH_MEASUREMENTS, self.on_timeout, [on_success]).start()
             else:
                 self.on_fail()
                 self.clear_attrs()
+        else:
+            if on_success:
+                on_success()
 
     def on_timeout(self, on_success):
         self.timer = None
@@ -44,10 +46,10 @@ class RemindersManager:
         self.clear_display()
 
     def display_reminders(self, target, on_success=None, on_fail=None):
-        self.on_success = on_success
-        self.on_fail = on_fail
-        self.running = True
         if cfg.robot_stream:
+            self.on_success = on_success
+            self.on_fail = on_fail
+            self.running = True
             if self.tabletService:
                 self.signalID1 = self.tabletService.onJSEvent.connect(self.get_reminder)
                 self.signalID2 = self.tabletService.onPageFinished.connect(self.page_finished)
@@ -55,6 +57,9 @@ class RemindersManager:
             else:
                 self.on_fail()
                 self.clear_attrs()
+        else:
+            if on_success:
+                on_success()
 
     def get_url_for_target(self, target):
         if target in cfg.HEALTH_MEASUREMENTS_URL:
@@ -74,14 +79,15 @@ class RemindersManager:
         return 0
 
     def clear_display(self):
-        if self.timer:
-            self.timer.cancel()
-        if self.signalID2 and self.signalID1:
-            self.tabletService.onPageFinished.disconnect(self.signalID1)
-            self.tabletService.onJSEvent.disconnect(self.signalID2)
-        if self.tabletService:
-            self.tabletService.hideWebview()
-            self.clear_attrs()
+        if cfg.robot_stream:
+            if self.timer:
+                self.timer.cancel()
+            if self.signalID2 and self.signalID1:
+                self.tabletService.onPageFinished.disconnect(self.signalID1)
+                self.tabletService.onJSEvent.disconnect(self.signalID2)
+            if self.tabletService:
+                self.tabletService.hideWebview()
+                self.clear_attrs()
 
     def clear_attrs(self):
         self.on_success = None

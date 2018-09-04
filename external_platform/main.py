@@ -1,11 +1,8 @@
+import config as cfg
 import sys
-naoqi_path = '/home/sparc-308/workspace/stefania/pynaoqi-python2.7/lib/python2.7/site-packages'
-sys.path.insert(0, naoqi_path)
-
-sys.path.append('/home/sparc-308/Desktop/final_integration/sparc/external_platform')
+sys.path.insert(0, cfg.naoqi_path)
 
 import qi
-import config as cfg
 import rospy
 import signal
 import traceback
@@ -18,11 +15,10 @@ class Main(object):
 	def __init__(self, app):
 		if cfg.robot_stream:
 			app.start()
+		if cfg.robot_stream	or cfg.receive_commands:
+			rospy.init_node('listener', anonymous=True)
 
 		self.task_manager = TaskManager(app)
-
-		rospy.init_node('listener', anonymous=True)
-
 		super(Main, self).__init__()
 
 	def interuppt_handler(self, signum, frame):
