@@ -3,7 +3,8 @@ from std_msgs.msg import ColorRGBA
 from subject_presentations import *
 from utils.utils import *
 # Receive or send data to the robot
-robot_stream = True
+robot_stream = False
+receive_commands = True
 send_data = False
 
 # Show images and positions.
@@ -19,6 +20,12 @@ ip_local = '172.19.11.65'
 ip = ip_fast
 port = 9559
 frameRate = 30
+
+# Project path
+project_path = '/home/sparc-308/workspace/sparc/'
+
+# NaoQI path
+naoqi_path = '/home/sparc-308/workspace/stefania/pynaoqi-python2.7/lib/python2.7/site-packages'
 
 # Camera fields of view information.
 width = 640
@@ -60,8 +67,8 @@ SAY_PRIOR = 1
 SEARCH_PRIOR = 2
 GO_TO_PRIOR = 3
 FIND_PRIOR = 4
-SHOW_REMINDERS_PRIOR = 1
-HEALTH_PRIOR = 1
+HEALTH_PRIOR = 100
+SHOW_REMINDERS_PRIOR = 100
 
 # Wit.ai api params.
 URL = 'https://api.wit.ai/message'
@@ -123,4 +130,4 @@ TIME_SHOWING_HEALTH_MEASUREMENTS = 5
 KNOWN_LABELS = {8: 'chair', 10: 'table', 15: 'plant', 17: 'sofa', 19: 'monitor'}
 
 REMINDERS_COUNT_URL = "http://192.168.0.158:3000/remindersCount"
-REMINDERS_URL = "http://192.168.0.158:3000/Reminders/0"
+REMINDERS_URL = "http://192.168.0.158:3000/Reminders"

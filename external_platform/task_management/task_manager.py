@@ -104,7 +104,7 @@ class TaskManager:
 							   None,
 							   self.add_task_to_queue,
 							   cfg.SHOW_REMINDERS_PRIOR,
-							   self.reminders_manager.get_target_id_for_person(target))
+							   self.reminders_manager.get_url_for_person(target))
 			return task
 		return None
 
@@ -149,6 +149,7 @@ class TaskManager:
 		if task != self.current_task:
 			if self.current_task:
 				self.stop_task(self.current_task)
-				self.add_task_to_queue(self.current_task)
+				if not hasattr(self.current_task, 'url'):
+					self.add_task_to_queue(self.current_task)
 			self.current_task = task
 			self.execute_task(self.current_task)

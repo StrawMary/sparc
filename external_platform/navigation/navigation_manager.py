@@ -1,7 +1,12 @@
 import config as cfg
+import math
+import os.path
+import pickle
+import random
 import rospy
 import tf
 import tf2_ros
+import threading
 import time
 
 from actionlib_msgs.msg import GoalStatusArray, GoalID
@@ -12,12 +17,9 @@ from move_base_msgs.msg import MoveBaseActionFeedback, MoveBaseActionResult
 from scipy.spatial import distance
 from std_msgs.msg import Header
 from visualization_msgs.msg import Marker, MarkerArray
-import math
-import json, yaml
+
 from navigation.target import Target
 from robot_localization import PepperLocalization
-import os.path
-import pickle
 
 
 class ClassType(Enum):
@@ -49,6 +51,7 @@ class NavigationManager:
 		self.listener = tf.TransformListener()
 		self.goal_ids = []
 		self.move_action_feedback = None
+		self.timer = None
 
 	def get_move_action_status(self, data):
 		if data:
@@ -93,11 +96,19 @@ class NavigationManager:
 			self.move_publisher.publish(goal)
 			self.on_success = on_success
 			self.on_fail = on_fail
+		else:
+			self.timer = threading.Timer(10, self.on_timeout, [on_success, on_fail])
+			self.timer.start()
 
 	def stop_movement(self):
-		for goal_id in self.goal_ids:
-			self.cancel_publisher.publish(goal_id)
-		self.goal_ids = []
+		if cfg.robot_stream:
+			for goal_id in self.goal_ids:
+				self.cancel_publisher.publish(goal_id)
+			self.goal_ids = []
+		else:
+			if self.timer:
+				self.timer.cancel()
+			self.timer = None
 
 	def is_located(self, key):
 		return key in self.encountered_positions or key + '@' in self.encountered_positions
@@ -122,7 +133,6 @@ class NavigationManager:
 		return closest_location
 
 	def get_coordinate_for_label(self, key):
-		print(self.encountered_positions.keys())
 		if key in self.encountered_positions:
 			return self.get_closest_location(self.encountered_positions[key][1:])
 		elif key + "@" in self.encountered_positions:
@@ -134,18 +144,6 @@ class NavigationManager:
 		a = (p1.x, p1.y, p1.z)
 		b = (p2.x, p2.y, p2.z)
 		return distance.euclidean(a, b)
-
-	def load_default_positions(self):
-		targets = []
-		for key, value in cfg.default_positions.iteritems():
-			show_target = Target(
-				class_type=ClassType.PERSON_DEFAULT,
-				label=key + '@',
-				coordinates=value
-			)
-			targets.append(show_target)
-		self.show_targets(targets, False)
-
 
 	def show_positions(self, data, value):
 		targets = []
@@ -233,13 +231,10 @@ class NavigationManager:
 		try:
 			if cfg.robot_stream:
 				self.listener.waitForTransform('/laser', '/map', rospy.Time(), rospy.Duration(0.2))
-			else:
-				pose_in_map = PoseStamped()
 		except (tf2_ros.TransformException, tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
 			pass
-		if cfg.robot_stream:
-			for target in targets:
-				self.show_target(target, self.listener, use_laser)
+		for target in targets:
+			self.show_target(target, self.listener, use_laser)
 
 	def show_target(self, target, listener, use_laser=True):
 		if cfg.robot_stream:
@@ -262,7 +257,10 @@ class NavigationManager:
 			pose.header.frame_id = 'map'
 		pose.pose = loc
 
-		pose_in_map = listener.transformPose('/odom', pose)
+		if cfg.robot_stream:
+			pose_in_map = listener.transformPose('/odom', pose)
+		else:
+			pose_in_map = pose
 		pose_in_map.header.frame_id = 'odom'
 
 		start_time = time.time()
@@ -294,6 +292,17 @@ class NavigationManager:
 		if cfg.debug_mode:
 			print("\ttransform %s seconds" % (time.time() - start_time))
 
+	def load_default_positions(self):
+		targets = []
+		for key, value in cfg.default_positions.iteritems():
+			show_target = Target(
+				class_type=ClassType.PERSON_DEFAULT,
+				label=key + '@',
+				coordinates=value
+			)
+			targets.append(show_target)
+		self.show_targets(targets, False)
+
 	def load_positions_from_file(self):
 		if not os.path.isfile(cfg.last_known_positions_file):
 			return
@@ -311,5 +320,14 @@ class NavigationManager:
 
 	def shut_down(self):
 		self.save_positions_to_file()
+
+	def on_timeout(self, on_success, on_fail):
+		self.timer = None
+		if random.random() < 0.5:
+			if on_success:
+				on_success()
+		else:
+			if on_fail:
+				on_fail()
 
 
