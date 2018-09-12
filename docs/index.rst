@@ -9,9 +9,8 @@ Welcome to SPARC's documentation!
 Contents:
 
 .. toctree::
-   :maxdepth: 2
-   	welcome
-   	runandconf
+   Welcome <welcome>
+   Running and Configuration <runandconf>
 
 
 

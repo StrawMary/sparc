@@ -72,6 +72,3 @@ If you have any problems moving the robot with [move_base_simple](http://wiki.ro
 If you still get problems, check that your laptop supports OpenGL 3 (it is displayed when opening RVIZ) and try changing the frame from the Global Settings in rviz.
 
 The robot should be displayed correctly and you can subscribe to additional modules by adding sensors using the add button in RVIZ.
-<!--stackedit_data:
-eyJoaXN0b3J5IjpbLTM1NzgwNTg2Ml19
--->
