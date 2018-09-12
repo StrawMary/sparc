@@ -5,28 +5,28 @@ Any similar compatible devices which send [Laserscan](http://docs.ros.org/melodi
 
 ## Installing ROS
 
-1.  #### Setup your sources.list - Setup your computer to accept software from packages.ros.org. ROS Indigo ONLY supports Saucy (13.10) and Trusty (14.04) for debian packages.
+1.  Setup your sources.list - Setup your computer to accept software from packages.ros.org. ROS Indigo ONLY supports Saucy (13.10) and Trusty (14.04) for debian packages.
 
 
 		sudo sh -c 'echo "deb http://packages.ros.org/ros/ubuntu $(lsb_release -sc) main" > /etc/apt/sources.list.d/ros-latest.list'
 	
-2.  #### Set up your keys
+2.  Set up your keys
 		
         sudo apt-key adv --keyserver hkp://ha.pool.sks-keyservers.net --recv-key 0xB01FA116
         sudo apt-get update
 
-3.  #### Install the full package of ROS
+3.  Install the full package of ROS
 	    sudo apt-get install ros-indigo-desktop-full
     
 ***If the ros-indigo cannot be found in the sources, make sure you have Ubuntu 14 or other compatible operating system! Check the ROS wrapper compatibility before continuing installing the system!***
 
-4.  #### Initialise ROS DEP
+4.  Initialise ROS DEP
 	    sudo rosdep init  
 	    rosdep update
-5.  #### Setup the environment:
+5.  Setup the environment:
 	    echo "source /opt/ros/indigo/setup.bash" >> ~/.bashrc  
 	    source ~/.bashrc
-6.  #### Install python-ros
+6.  Install python-ros
 	    sudo apt-get install python-rosinstall
  
 ## Pepper ROS Integration
@@ -37,13 +37,12 @@ Pepper requires the NaoQI framework installed and running in order to be able to
 
 1. Download the C++ and Python SDK (2.5+) [https://community.aldebaran.com/](https://community.aldebaran.com/)
 2.  Extract the python SDK (pynaoqi-python2.7-x.x.x.x-linux64.tar) and the C++ SDK (naoqi-sdk-x.x.x.x-linux64.tar) in ~/naoqi
-		
 		~/naoqi/naoqi-sdk-x.x.x.x-linux64/naoqi
-4. Export the SDK path variable:
+3. Export the SDK path variable:
 
 		export PYTHONPATH=~/naoqi/pynaoqi-python2.7-x.x.x.x-linux64:$PYTHONPATH
 		echo 'export PYTHONPATH=~/naoqi/pynaoqi-python2.7-x.x.x.x-linux64:$PYTHONPATH' >> ~/.bashrc
-5.  Run python and check that you can import the library
+4.  Run python and check that you can import the library
 		
 		from naoqi import ALProxy
 

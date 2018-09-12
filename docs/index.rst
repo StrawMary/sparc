@@ -9,8 +9,17 @@ Welcome to SPARC's documentation!
 Contents:
 
 .. toctree::
+   :maxdepth: 2
+   :caption: Table of contents:
+   
    Welcome <welcome>
-   Running and Configuration <runandconf>
+   Configuration and Running <runandconf>
+   ROS Modules <ros>
+
+   Vision Modules <vision>
+   Navigation Modules <nav>
+   Speech Modules <speech>
+   
 
 
 
