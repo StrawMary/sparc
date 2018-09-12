@@ -1,3 +1,6 @@
+import sys
+sys.path.append('../')
+
 import config as cfg
 import json
 import rospy
@@ -8,10 +11,11 @@ from std_msgs.msg import String
 
 
 class SpeechManager:
-	def __init__(self, app, on_speech_received):
+	def __init__(self, app, on_speech_received, receive_commands=False):
 		self.catch_phrase = cfg.speech_catch_phrase
 		self.fade_duration = cfg.fade_duration
 		self.robot_stream = cfg.robot_stream
+		self.receive_commands = cfg.receive_commands or receive_commands
 		self.on_speech_received = on_speech_received
 
 		self.on_going_say_promise = None
@@ -20,10 +24,10 @@ class SpeechManager:
 		self.on_fail = None
 		self.timer = None
 
-		if self.robot_stream:
+		if self.robot_stream and app:
 			self.leds_service = app.session.service("ALLeds")
 			self.speech_service = app.session.service("ALTextToSpeech")
-		if self.robot_stream or cfg.receive_commands:
+		if self.robot_stream or self.receive_commands:
 			self.recognition_subscriber = rospy.Subscriber('speech_text', String, self.callback_text)
 			self.commands_subscriber = rospy.Subscriber('/commands_json', String, self.callback_json)
 
@@ -155,3 +159,10 @@ class SpeechManager:
 		self.timer = None
 		if on_success:
 			on_success()
+
+
+if __name__ == '__main__':
+	def print_data(data):
+		print(data)
+
+	speech_subscriber = SpeechManager(None, print_data, True)
