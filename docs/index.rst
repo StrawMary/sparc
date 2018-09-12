@@ -6,10 +6,8 @@
 Welcome to SPARC's documentation!
 =================================
 
-Contents:
-
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 3
    :caption: Table of contents:
    
    Welcome <welcome>
@@ -23,10 +21,10 @@ Contents:
 
 
 
-Indices and tables
-==================
+.. Indices and tables
+.. ==================
 
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
+.. * :ref:`genindex`
+.. * :ref:`modindex`
+.. * :ref:`search`
 
