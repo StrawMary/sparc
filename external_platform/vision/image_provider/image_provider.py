@@ -9,12 +9,12 @@ import config as cfg
 from naoqi import ALProxy
 from PIL import Image
 
-class ImageProvider:
 
-    def __init__(self, IP, PORT, FPS):
-        self.IP = IP
-        self.PORT = PORT
-        self.FPS = FPS
+class ImageProvider:
+    def __init__(self):
+        self.IP = cfg.ip
+        self.PORT = cfg.port
+        self.FPS = cfg.frameRate
         self.connected = False
         self.images_counter = 0
 
@@ -71,7 +71,6 @@ class ImageProvider:
         opencv_image_depth = cv2.resize(opencv_image_depth, (cfg.width, cfg.height))
 
         return opencv_image, opencv_image_depth, camInRobotFrame[2], head_yaw, head_pitch
-
 
     def release_image(self):
         self.cam_proxy.releaseImage(self.video_client)

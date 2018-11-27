@@ -6,6 +6,7 @@ import json
 import rospy
 import requests
 import threading
+import string
 
 from std_msgs.msg import String
 
@@ -23,6 +24,8 @@ class SpeechManager:
 		self.on_success = None
 		self.on_fail = None
 		self.timer = None
+		self.listening = True
+		self.listening_keywords = []
 
 		if self.robot_stream and app:
 			self.leds_service = app.session.service("ALLeds")
@@ -31,13 +34,15 @@ class SpeechManager:
 			self.recognition_subscriber = rospy.Subscriber('speech_text', String, self.callback_text)
 			self.commands_subscriber = rospy.Subscriber('/commands_json', String, self.callback_json)
 
-
 	def callback_text(self, received_data):
 		data = json.loads(received_data.data)
 		if not data['text']:
 			return
 		text = data['text'].strip().lower()
 		language = data['language']
+
+		if self.listening:
+			self.check_speech_recognized(text)
 
 		response = self.call_wit(text, language)
 		interpreted_speech = self.interpret(response)
@@ -135,7 +140,6 @@ class SpeechManager:
 			self.on_success = on_success
 			self.on_fail = on_fail
 			if text:
-				text = text.encode("ascii", "ignore")
 				self.on_going_say_promise = self.speech_service.say(str(text), "English", _async=True)
 				self.on_going_say_promise.addCallback(self.say_async_callback)
 			else:
@@ -155,10 +159,43 @@ class SpeechManager:
 				self.timer.cancel()
 			self.timer = None
 
-	def on_timeout(self, on_success):
+	def on_timeout(self, on_timeout):
 		self.timer = None
-		if on_success:
-			on_success()
+		if on_timeout:
+			on_timeout()
+
+	def listen(self, keywords, on_success=None, on_fail=None):
+		if self.leds_service:
+			self.leds_service.fadeRGB("FaceLeds", "blue", 1)
+		self.listening = True
+		self.listening_keywords = keywords
+		self.on_success = on_success
+		self.timer = threading.Timer(10, self.on_timeout, [on_fail])
+		self.timer.start()
+
+	def check_speech_recognized(self, text):
+		tokens = text.split(" ")
+		for key in self.listening_keywords:
+			if key in tokens:
+				on_success = self.on_success
+				self.clear_listen_attrs()
+				if on_success:
+					on_success(key)
+
+
+	def stop_listen(self):
+		self.clear_listen_attrs()
+
+	def clear_listen_attrs(self):
+		if self.leds_service:
+			self.leds_service.fadeRGB("FaceLeds", "white", 1)
+		if self.timer:
+			self.timer.cancel()
+		self.timer = None
+		self.on_success = None
+		self.on_fail = None
+		self.listening = False
+		self.listening_keywords = []
 
 
 if __name__ == '__main__':

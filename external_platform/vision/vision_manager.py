@@ -6,7 +6,7 @@ import time
 
 from vision.data_processor import DataProcessor
 from vision.facenet.face_detector_recognizer import FaceNetDetector
-from vision.image_provider.image_provider import ImageProvider
+from vision.image_provider.image_provider_ros import ImageProvider
 from vision.qrcodes_handler.qrcodes_handler import QRCodesHandler
 from vision.segmentation.human_segmentation import Segmentation
 from vision.tracking.tracker import Tracker
@@ -36,7 +36,7 @@ class VisionManager:
 		self.timer = None
 
 		if self.robot_stream:
-			self.image_provider = ImageProvider(cfg.ip, cfg.port, cfg.frameRate)
+			self.image_provider = ImageProvider()
 			self.image_provider.connect()
 			self.behavior_manager = app.session.service("ALBehaviorManager")
 		else:
@@ -54,6 +54,9 @@ class VisionManager:
 			camera_height = 1.2
 			head_yaw = 0
 			head_pitch = 0
+
+		if len(image) == 0:
+			return [], [], []
 
 		if self.debug_mode:
 			aq_time = time.time()

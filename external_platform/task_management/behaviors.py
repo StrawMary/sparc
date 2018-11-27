@@ -90,3 +90,18 @@ def get_find_behavior(task_manager, target):
 	else:
 		say1.success_child = say4
 		return say1
+
+
+def get_simple_listen_behavior(task_manager):
+	say1 = task_manager.create_task_say("Is this a listen test?")
+	say2 = task_manager.create_task_say("Yes, it is a test.")
+	say3 = task_manager.create_task_say("No, it is not a test.")
+	say4 = task_manager.create_task_say("Sorry, I didn't hear you.")
+	listen_task = task_manager.create_task_listen(['da', 'nu'])
+	success_child = {'da': say2, 'nu': say3}
+
+	listen_task.success_child = success_child
+	listen_task.fail_child = say4
+	say1.success_child = listen_task
+	return say1
+

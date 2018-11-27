@@ -14,6 +14,19 @@ class SayTask(ITask):
         return '%16s: Prior=%d Status=%-20s Target=%s' % (self.__class__.__name__, self.priority, str(self.status), self.text if len(self.text) < 20 else self.text[:17] + '...')
 
 
+class ListenTask(ITask):
+    def __init__(self, run_method, stop_method, success_child, fail_child, add_to_queue_method, priority, keywords):
+        ITask.__init__(self, run_method, stop_method, success_child, fail_child, add_to_queue_method, priority)
+        self.keywords = keywords
+
+    def run(self):
+        self.status = TaskStatus.RUNNING
+        self.run_method(self.keywords, self.on_success, self.on_fail)
+
+    def stringify(self):
+        return '%16s: Prior=%d Status=%-20s Target=%s' % (self.__class__.__name__, self.priority, str(self.status), self.keywords)
+
+
 class MoveToTask(ITask):
     def __init__(self, run_method, stop_method, success_child, fail_child, add_to_queue_method, priority, target):
         ITask.__init__(self, run_method, stop_method, success_child, fail_child, add_to_queue_method, priority)
@@ -55,6 +68,6 @@ class ShowURLTask(ITask):
         self.run_method(self.url, self.on_success, self.on_fail)
 
     def stringify(self):
-        return '%16s: Prior=%d Status=%-20s Target=%s' % (self.__class__.__name__, self.priority, str(self.status), self.url if len(self.url) < 20 else self.url[:17] + '...')
+        return '%16s: Prior=%d Status=%-20s Target=%s' % (self.__class__.__name__, self.priority, str(self.status), self.url if len(self.url) < 50 else self.url[:17] + '...')
 
 

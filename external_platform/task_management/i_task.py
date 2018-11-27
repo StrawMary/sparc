@@ -24,10 +24,13 @@ class ITask:
 		if self.run_method:
 			self.run_method(self.on_success, self.on_fail)
 
-	def on_success(self):
+	def on_success(self, select_child=None):
 		self.status = TaskStatus.FINISHED
-		if self.success_child:
-			self.add_to_queue_method(self.success_child)
+		success_child = self.success_child
+		if select_child and self.success_child:
+			success_child = self.success_child[select_child]
+		if success_child:
+			self.add_to_queue_method(success_child)
 
 	def on_fail(self):
 		self.status = TaskStatus.FAILED

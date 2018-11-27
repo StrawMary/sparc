@@ -56,6 +56,7 @@ class RemindersManager:
                 self.signalID1 = self.tabletService.onJSEvent.connect(self.get_reminder)
                 self.signalID2 = self.tabletService.onPageFinished.connect(self.page_finished)
                 self.tabletService.showWebview(target + '/0')
+                print("Showing webview")
             else:
                 self.on_fail()
                 self.clear_attrs()

@@ -6,6 +6,7 @@ sys.path.insert(0, cfg.naoqi_path)
 
 import argparse
 import qi
+import rospy
 import signal
 import traceback
 import time
@@ -16,6 +17,7 @@ class Main(object):
 	def __init__(self, app, robot_stream, debug_mode):
 		self.debug_mode = debug_mode
 		if robot_stream:
+			rospy.init_node('camera_listener', anonymous=True)
 			app.start()
 
 		self.vision_manager = VisionManager(app, robot_stream, True, debug_mode)

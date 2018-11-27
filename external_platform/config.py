@@ -1,9 +1,9 @@
-from predefined_possible_locations import *
 from std_msgs.msg import ColorRGBA
 from subject_presentations import *
 from utils.utils import *
+
 # Receive or send data to the robot
-robot_stream = False
+robot_stream = True
 receive_commands = True
 send_data = False
 
@@ -14,18 +14,27 @@ display_images = True
 
 # Robot IP information.
 ip_fast = '192.168.0.115'
-ip_local = '172.19.11.65'
+ip_local = '172.19.10.191'
 
 # Image stream information.
 ip = ip_fast
 port = 9559
 frameRate = 30
 
+# Language information
+language_en = 'en-EN'
+language_ro = 'ro-RO'
+
+language = language_ro
+
 # Project path
 project_path = '/home/sparc-308/workspace/sparc/'
 
 # NaoQI path
 naoqi_path = '/home/sparc-308/workspace/stefania/pynaoqi-python2.7/lib/python2.7/site-packages'
+
+# Top camera height.
+top_camera_height = 1.165
 
 # Camera fields of view information.
 width = 640
@@ -63,6 +72,7 @@ speech_catch_phrase = 'hey pepper'
 fade_duration = 1.0
 
 # Task priorities.
+LISTEN_PRIOR = 1
 SAY_PRIOR = 1
 SEARCH_PRIOR = 2
 GO_TO_PRIOR = 3
@@ -125,7 +135,7 @@ HEALTH_MEASUREMENTS_URL = {
 	'sleep': "http://192.168.0.158:3000/Sleep"
 }
 
-TIME_SHOWING_HEALTH_MEASUREMENTS = 5
+TIME_SHOWING_HEALTH_MEASUREMENTS = 10
 
 KNOWN_LABELS = {8: 'chair', 10: 'table', 15: 'plant', 17: 'sofa', 19: 'monitor'}
 

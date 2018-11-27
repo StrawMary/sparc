@@ -5,7 +5,7 @@ from enum import Enum
 from navigation.navigation_manager import NavigationManager
 from navigation.pose_manager import PepperPoseManager
 from robot_interaction.speech_recognition_subscriber import SpeechManager
-from task_management.task import TaskStatus, MoveToTask, SayTask, SearchPersonTask, ShowURLTask
+from task_management.task import TaskStatus, MoveToTask, SayTask, ListenTask, SearchPersonTask, ShowURLTask
 from task_management.behaviors import *
 from vision.vision_manager import VisionManager
 from robot_interaction.reminders import RemindersManager
@@ -25,6 +25,8 @@ class TaskManager:
 		self.pose_manager = PepperPoseManager()
 		self.reminders_manager = RemindersManager(app, self.speech_manager.say_async)
 		self.current_task = None
+
+		self.add_task_to_queue(get_simple_listen_behavior(self))
 
 	def create_behavior(self, data):
 		if data['intent'] == cfg.STOP_INTENT:
@@ -69,6 +71,18 @@ class TaskManager:
 						   self.add_task_to_queue,
 						   cfg.SAY_PRIOR,
 						   text)
+			return task
+		return None
+
+	def create_task_listen(self, keywords):
+		if keywords:
+			task = ListenTask(self.speech_manager.listen,
+						   self.speech_manager.stop_listen,
+						   None,
+						   None,
+						   self.add_task_to_queue,
+						   cfg.LISTEN_PRIOR,
+						   keywords)
 			return task
 		return None
 
