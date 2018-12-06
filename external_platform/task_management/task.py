@@ -71,3 +71,16 @@ class ShowURLTask(ITask):
         return '%16s: Prior=%d Status=%-20s Target=%s' % (self.__class__.__name__, self.priority, str(self.status), self.url if len(self.url) < 50 else self.url[:17] + '...')
 
 
+class ActuationTask(ITask):
+    def __init__(self, run_method, stop_method, success_child, fail_child, add_to_queue_method, priority, target, optional_entities=None):
+        ITask.__init__(self, run_method, stop_method, success_child, fail_child, add_to_queue_method, priority)
+        self.target = target
+        self.optional_entities = optional_entities
+
+    def run(self):
+        self.status = TaskStatus.RUNNING
+        self.run_method(self.target, self.optional_entities, self.on_success, self.on_fail)
+
+    def stringify(self):
+        return '%16s: Prior=%d Status=%-20s Target=%s Optional=%s' % (self.__class__.__name__, self.priority, str(self.status), self.target, self.optional_entities)
+

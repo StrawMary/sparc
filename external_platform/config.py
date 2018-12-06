@@ -74,9 +74,10 @@ fade_duration = 1.0
 # Task priorities.
 LISTEN_PRIOR = 1
 SAY_PRIOR = 1
-SEARCH_PRIOR = 2
-GO_TO_PRIOR = 3
-FIND_PRIOR = 4
+ACTUATION_PRIOR = 2
+SEARCH_PRIOR = 3
+GO_TO_PRIOR = 4
+FIND_PRIOR = 5
 HEALTH_PRIOR = 100
 SHOW_REMINDERS_PRIOR = 100
 
@@ -95,18 +96,23 @@ REMINDERS_INTENT = 'reminders'
 NEXT_INTENT = 'next'
 PREVIOUS_INTENT = 'previous'
 HEALTH_INTENT = 'health'
+ACTUATION_INTENT = 'actuate'
+
 hello_response = 'hello'
 
-mandatory_intent_entities = {SAY_INTENT: ['target'],
-							 SEARCH_INTENT: ['target'],
-							 GO_TO_INTENT: ['target'],
-							 FIND_INTENT: ['target'],
-							 REMINDERS_INTENT: ['target'],
-							 NEXT_INTENT: [],
-							 PREVIOUS_INTENT: [],
-							 HEALTH_INTENT: ['health_entity'],
-							 STOP_INTENT: [],
-							 HELLO_INTENT: []}
+mandatory_intent_entities = {
+	SAY_INTENT: ['target'],
+	SEARCH_INTENT: ['target'],
+	GO_TO_INTENT: ['target'],
+	FIND_INTENT: ['target'],
+	REMINDERS_INTENT: ['target'],
+	NEXT_INTENT: [],
+	PREVIOUS_INTENT: [],
+	HEALTH_INTENT: ['health_entity'],
+	STOP_INTENT: [],
+	ACTUATION_INTENT: ['target'],
+	HELLO_INTENT: []
+}
 
 # Association between subjects and presentations.
 presentations = {'lab308': lab308_presentation,

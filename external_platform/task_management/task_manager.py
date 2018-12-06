@@ -2,13 +2,15 @@ import config as cfg
 import heapq
 
 from enum import Enum
+from environment_interaction.environment_manager import EnvironmentManager
 from navigation.navigation_manager import NavigationManager
 from navigation.pose_manager import PepperPoseManager
 from robot_interaction.speech_recognition_subscriber import SpeechManager
-from task_management.task import TaskStatus, MoveToTask, SayTask, ListenTask, SearchPersonTask, ShowURLTask
+from task_management.task import TaskStatus, MoveToTask, SayTask, ListenTask, SearchPersonTask, ShowURLTask, ActuationTask
 from task_management.behaviors import *
 from vision.vision_manager import VisionManager
 from robot_interaction.reminders import RemindersManager
+
 
 class TaskType(Enum):
 	GO_TO = 1
@@ -24,9 +26,8 @@ class TaskManager:
 		self.navigation_manager = NavigationManager()
 		self.pose_manager = PepperPoseManager()
 		self.reminders_manager = RemindersManager(app, self.speech_manager.say_async)
+		self.environment_manager = EnvironmentManager()
 		self.current_task = None
-
-		self.add_task_to_queue(get_simple_listen_behavior(self))
 
 	def create_behavior(self, data):
 		if data['intent'] == cfg.STOP_INTENT:
@@ -38,18 +39,20 @@ class TaskManager:
 			return
 
 		if data['intent'] == cfg.SEARCH_INTENT:
-			behavior_head = get_search_behavior(self, data['mandatory_entities'][0])
+			behavior_head = get_search_behavior(self, data['mandatory_entities']['target'])
 		elif data['intent'] == cfg.GO_TO_INTENT:
-			behavior_head = get_go_to_behavior(self, data['mandatory_entities'][0])
+			behavior_head = get_go_to_behavior(self, data['mandatory_entities']['target'])
 		elif data['intent'] == cfg.FIND_INTENT:
-			behavior_head = get_find_behavior(self, data['mandatory_entities'][0])
+			behavior_head = get_find_behavior(self, data['mandatory_entities']['target'])
 		elif data['intent'] == cfg.REMINDERS_INTENT:
-			behavior_head = get_reminders_behavior(self, data['mandatory_entities'][0])
+			behavior_head = get_reminders_behavior(self, data['mandatory_entities']['target'])
 		elif data['intent'] == cfg.HEALTH_INTENT:
-			behavior_head = get_health_behaviour(self, data['mandatory_entities'][0])
+			behavior_head = get_health_behaviour(self, data['mandatory_entities']['health_entity'])
+		elif data['intent'] == cfg.ACTUATION_INTENT:
+			behavior_head = get_actuators_behaviour(self, data['mandatory_entities']['target'], data['optional_entities'])
 		elif data['intent'] == cfg.SAY_INTENT:
-			if data['mandatory_entities'][0] in cfg.presentations:
-				response = cfg.presentations[data['mandatory_entities'][0]]
+			if data['mandatory_entities']['target'] in cfg.presentations:
+				response = cfg.presentations[data['mandatory_entities']['target']]
 				if callable(response):
 					response = response(data['optional_entities'])
 				behavior_head = get_say_behavior(self, response)
@@ -134,8 +137,23 @@ class TaskManager:
 			return task
 		return None
 
+	def create_task_actuation(self, target, optional_entities):
+		if not target:
+			return None
+
+		task = ActuationTask(self.environment_manager.process_command,
+							 self.environment_manager.stop,
+							 None,
+							 None,
+							 self.add_task_to_queue,
+							 cfg.ACTUATION_PRIOR,
+							 target,
+							 optional_entities)
+		return task
+
 	def add_task_to_queue(self, task):
 		heapq.heappush(self.ongoing_tasks, (task.priority, task))
+		print("Queue: " + str(self.ongoing_tasks))
 
 	def execute_task(self, task):
 		print("Executing task: " + str(task))

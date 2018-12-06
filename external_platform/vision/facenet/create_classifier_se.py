@@ -48,7 +48,7 @@ with tf.Graph().as_default():
             feed_dict = {images_placeholder: images, phase_train_placeholder: False}
             emb_array[start_index:end_index, :] = sess.run(embeddings, feed_dict=feed_dict)
 
-        classifier_filename = './my_class/my_classifier.pkl'
+        classifier_filename = './classifier/faces_classifier.pkl'
         classifier_filename_exp = os.path.expanduser(classifier_filename)
 
         # Train classifier

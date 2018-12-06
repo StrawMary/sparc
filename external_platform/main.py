@@ -51,11 +51,11 @@ class Main(object):
 				if cfg.debug_mode:
 					display_time = time.time()
 					print("--- rviz display: \t %s seconds ---" % (display_time - vision_time))
-				if self.task_manager.current_task:
-					print('CTask: ' + str(self.task_manager.current_task))
-				if self.task_manager.ongoing_tasks:
-					print('Queue: '+ str(self.task_manager.ongoing_tasks))
-					print('')
+				# if self.task_manager.current_task:
+				# 	print('CTask: ' + str(self.task_manager.current_task))
+				# if self.task_manager.ongoing_tasks:
+				# 	print('Queue: '+ str(self.task_manager.ongoing_tasks))
+				# 	print('')
 				self.task_manager.step()
 				if cfg.debug_mode:
 					print("--- task execution: \t %s seconds ---" % (time.time() - display_time))

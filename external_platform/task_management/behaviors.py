@@ -105,3 +105,18 @@ def get_simple_listen_behavior(task_manager):
 	say1.success_child = listen_task
 	return say1
 
+
+def get_actuators_behaviour(task_manager, target, optional_entities=None):
+	say1 = task_manager.create_task_say("Ok. Will do.")
+	say2 = task_manager.create_task_say("Done.")
+	say3 = task_manager.create_task_say("Sorry, I failed.")
+
+	actuation_task = task_manager.create_task_actuation(target, optional_entities)
+	actuation_task.success_child = say2
+	actuation_task.fail_child = say3
+
+	say1.success_child = actuation_task
+	return say1
+
+
+

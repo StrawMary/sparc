@@ -5,11 +5,13 @@ import config as cfg
 import sys
 sys.path.insert(0, cfg.naoqi_path)
 
-from naoqi import ALProxy
 import json
 import rospy
 import speech_recognition as sr
 import traceback
+import unidecode
+
+from naoqi import ALProxy
 from std_msgs.msg import String
 from pepper_microphone import PepperSpeechRecognitionEngine
 
@@ -77,6 +79,8 @@ class SpeechRecognizer:
 				speech = self.recognize_speech()
 				print(speech)
 				if speech and speech['text']:
+					speech['text'] = unidecode.unidecode(speech['text'])
+					print("----" + speech['text'])
 					self.publisher.publish(json.dumps(speech))
 					self.rate.sleep()
 

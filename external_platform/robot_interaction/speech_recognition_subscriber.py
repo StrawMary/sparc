@@ -6,7 +6,6 @@ import json
 import rospy
 import requests
 import threading
-import string
 
 from std_msgs.msg import String
 
@@ -105,10 +104,10 @@ class SpeechManager:
 		return True
 
 	def get_mandatory_entities(self, mandatory_entities, received_entities):
-		entities = []
+		entities = {}
 		for mandatory_entity in mandatory_entities:
 			for received_entity in received_entities[mandatory_entity]:
-				entities.append(received_entity['value'])
+				entities[mandatory_entity] = received_entity['value']
 		return entities
 
 	def get_optional_entities(self, mandatory_entities, received_entities):

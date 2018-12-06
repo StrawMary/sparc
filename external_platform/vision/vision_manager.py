@@ -40,7 +40,9 @@ class VisionManager:
 			self.image_provider.connect()
 			self.behavior_manager = app.session.service("ALBehaviorManager")
 		else:
+			#self.camera = cv2.VideoCapture("rtsp://admin:admin@192.168.0.127/play1.sdp")
 			self.camera = cv2.VideoCapture(-1)
+			self.camera.set(cv2.CAP_PROP_BUFFERSIZE, 1)
 
 	def detect(self):
 		if self.debug_mode:
@@ -50,6 +52,7 @@ class VisionManager:
 			self.image_provider.release_image()
 		else:
 			_, image = self.camera.read()
+			image = cv2.resize(image, (cfg.width, cfg.height))
 			depth_image = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
 			camera_height = 1.2
 			head_yaw = 0
