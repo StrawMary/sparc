@@ -182,8 +182,9 @@ class Tracker(object):
 		self.trackers = []
 		self.frame_count = 0
 
-	def update_ids(self, bboxes, scores):
-		dets = self.preprocess(bboxes, scores)
+	def update_ids(self, people):
+		#dets = self.preprocess(bboxes, scores)
+		dets = self.preprocess_people(people)
 
 		self.frame_count += 1
 		#get predicted locations from existing trackers.
@@ -229,5 +230,13 @@ class Tracker(object):
 		for i in range(len(bboxes)):
 			det = list(bboxes[i])
 			det.append(scores[i])
+			detections.append(det)
+		return np.array(detections)
+
+	def preprocess_people(self, people):
+		detections = []
+		for bbox, score in people:
+			det = list(bbox)
+			det.append(score)
 			detections.append(det)
 		return np.array(detections)

@@ -10,16 +10,21 @@ from vision.image_provider.image_provider_ros import ImageProvider
 from vision.qrcodes_handler.qrcodes_handler import QRCodesHandler
 from vision.segmentation.human_segmentation import Segmentation
 from vision.tracking.tracker import Tracker
-from vision.yolo2.people_detector import PeopleDetector
+from vision.yolo2.object_detector import ObjectDetector as ObjectDetectorV2
+from vision.yolo3.object_detector import ObjectDetector as ObjectDetectorV3
 
 
 class VisionManager:
-	def __init__(self, app, robot_stream=cfg.robot_stream, display_images=cfg.display_images, debug_mode=cfg.debug_mode):
+	def __init__(self, app, robot_stream=cfg.robot_stream, display_images=cfg.display_images, debug_mode=cfg.debug_mode, detector_version="v3"):
 		self.robot_stream = robot_stream
 		self.display_images = display_images
 		self.debug_mode = debug_mode
 
-		self.people_detector = PeopleDetector()
+		if detector_version == "v2":
+			self.object_detector2 = ObjectDetectorV2()
+		else:
+			self.object_detector = ObjectDetectorV3()
+
 		self.tracker = Tracker()
 		self.segmentation = Segmentation()
 		self.face_detector = FaceNetDetector()
@@ -63,58 +68,58 @@ class VisionManager:
 
 		if self.debug_mode:
 			aq_time = time.time()
-			print("\t image getter: \t %s seconds" % (aq_time - start_time))
+			print("\t Image getter: \t %s seconds" % (aq_time - start_time))
 
 		# Use YOLO to detect people in frames.
-		people_bboxes, people_scores, objects = self.people_detector.detect(image)
-		self.data_processor.square_detections(people_bboxes)
+		people, objects = self.object_detector.detect(image)
+		self.data_processor.square_detections(people)
 
 		if self.debug_mode:
 			yolo_time = time.time()
-			print("\t\t yolo: \t %s seconds" % (yolo_time - aq_time))
+			print("\t\t Yolo: \t %s seconds" % (yolo_time - aq_time))
 
 		# Segment humans in detections.
-		segmented_image, mask = self.segmentation.segment_people_bboxes(image, people_bboxes)
+		segmented_image, mask = self.segmentation.segment_people_bboxes(image, people)
 
 		if self.debug_mode:
 			segmentation_time = time.time()
-			print("\t\t segmentation: \t %s seconds" % (segmentation_time - yolo_time))
+			print("\t\t Segmentation: \t %s seconds" % (segmentation_time - yolo_time))
 
 		# Check for QR codes.
 		qrcodes = self.qrcodes_handler.detect_QRcodes(image)
 
 		if self.debug_mode:
 			qr_time = time.time()
-			print("\t\t qr codes: \t %s seconds" % (qr_time - segmentation_time))
+			print("\t\t QR codes: \t %s seconds" % (qr_time - segmentation_time))
 
 		# Compute people IDs.
-		people_ids = self.tracker.update_ids(people_bboxes, people_scores)
+		people_ids = self.tracker.update_ids(people)
 
 		if self.debug_mode:
 			track_time = time.time()
-			print("\t\t sort: \t %s seconds" % (track_time - qr_time))
+			print("\t\t SORT: \t %s seconds" % (track_time - qr_time))
 
 		# Use FaceNet to detect and recognize faces in RGB image.
 		faces = self.face_detector.detect(image)
 
 		if self.debug_mode:
 			facenet_time = time.time()
-			print("\t\t facenet: \t %s seconds" % (facenet_time - track_time))
+			print("\t\t Facenet: \t %s seconds" % (facenet_time - track_time))
 
 		# Associate detected faces with detected people.
-		people = self.data_processor.associate_faces_to_people(people_bboxes, faces)
+		people_data = self.data_processor.associate_faces_to_people(people, faces)
 
 		if self.debug_mode:
 			association_time = time.time()
-			print("\t\t association: \t %s seconds" % (association_time - facenet_time))
+			print("\t\t Association: \t %s seconds" % (association_time - facenet_time))
 			nets_time = time.time()
-			print("\t neural nets: \t %s seconds" % (nets_time - aq_time))
+			print("\t Neural nets: \t %s seconds" % (nets_time - aq_time))
 
 		# Compute distances.
 		people_distances, people_depth_bboxes = self.data_processor.compute_people_distances(
 			depth_image,
 			mask,
-			people
+			people_data
 		)
 		object_distances, objects_depth_bboxes = self.data_processor.compute_objects_distances(
 			depth_image,
@@ -127,7 +132,7 @@ class VisionManager:
 
 		# Get objects 3D position relatively to the robot.
 		people_3d_positions = self.data_processor.get_people_3d_positions(
-			people,
+			people_data,
 			people_ids,
 			people_distances,
 			head_yaw,
@@ -149,18 +154,18 @@ class VisionManager:
 			camera_height
 		)
 
-		self.check_detected_target(people, qrcodes, objects)
+		self.check_detected_target(people_data, qrcodes, objects)
 
 		if self.debug_mode:
 			pos_time = time.time()
-			print("\t 3d positions: \t %s seconds" % (pos_time - nets_time))
+			print("\t 3D positions: \t %s seconds" % (pos_time - nets_time))
 
 		if self.display_images:
 			# Show detections on RGB and depth images and display detections in RViz.
-			image = self.people_detector.draw_people_detections(image, people_bboxes, people_scores, people_ids,
+			image = self.object_detector.draw_people_detections(image, people, people_ids,
 																people_distances)
-			image = self.people_detector.draw_object_detections(image, objects, object_distances)
-			image = self.people_detector.draw_object_detections(image, qrcodes, qrcodes_distances)
+			image = self.object_detector.draw_object_detections(image, objects, object_distances)
+			image = self.object_detector.draw_object_detections(image, qrcodes, qrcodes_distances)
 			image = self.face_detector.draw_detections(image, faces)
 			depth_image = self.data_processor.draw_squares(depth_image, people_depth_bboxes)
 			cv2.imshow('Segmented', segmented_image)
@@ -172,7 +177,7 @@ class VisionManager:
 				self.running = False
 
 			if self.debug_mode:
-				print("\t display image: \t %s seconds" % (time.time() - pos_time))
+				print("\t Display image: \t %s seconds" % (time.time() - pos_time))
 
 		return people_3d_positions, objects_3d_positions, qrcodes_3d_positions
 

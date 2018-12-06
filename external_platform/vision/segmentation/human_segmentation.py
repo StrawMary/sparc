@@ -61,7 +61,7 @@ class Segmentation():
         mask = np.zeros((self.height, self.width), dtype=bool)
         #return segmented_image, mask
 
-        for bbox in people:
+        for bbox, _ in people:
             left, top, right, bottom = bbox
             segmented_person, mask_person = self.segment(image[top:bottom, left:right])
             segmented_image[top:bottom, left:right] = segmented_person

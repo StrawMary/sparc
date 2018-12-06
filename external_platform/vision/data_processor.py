@@ -14,10 +14,10 @@ class DataProcessor:
     #                     Association between faces and people detections
     ###############################################################################################
 
-    def square_detections(self, bboxes):
-        for i in range(len(bboxes)):
-            width = bboxes[i][2] - bboxes[i][0]
-            bboxes[i][3] = bboxes[i][1] + width
+    def square_detections(self, bboxes_and_scores):
+        for i in range(len(bboxes_and_scores)):
+            width = bboxes_and_scores[i][0][2] - bboxes_and_scores[i][0][0]
+            bboxes_and_scores[i][0][3] = bboxes_and_scores[i][0][1] + width
 
     def get_intersection_percentage(self, person_bbox, face_bbox):
         p_left, p_top, p_right, p_bottom = person_bbox
@@ -33,26 +33,26 @@ class DataProcessor:
 
         return intersection_area * 1.0 / area
 
-    def associate_faces_to_people(self, people_bboxes, faces):
-        people = []
-        for i in range(len(people_bboxes)):
+    def associate_faces_to_people(self, people, faces):
+        people_data = []
+        for i in range(len(people)):
             # Checks if a face is detected for the detected person.
             face_detected = False
             for face in faces:
-                intersection_percentage = self.get_intersection_percentage(people_bboxes[i], face[0])
+                intersection_percentage = self.get_intersection_percentage(people[i][0], face[0])
                 if intersection_percentage >= cfg.intersection_percentage_thresh:
                     face_detected = True
                     break
 
             # Adds person information.
-            person = {'person_bbox': people_bboxes[i]}
+            person = {'person_bbox': people[i][0], 'person_score': people[i][1]}
             if face_detected:
                 person['face_bbox'] = face[0]
                 person['name'] = face[1]
                 person['confidence'] = face[2]
-            people.append(person)
+            people_data.append(person)
 
-        return people
+        return people_data
 
     ###############################################################################################
     #                     Distances relatively to the robot

@@ -13,6 +13,7 @@ import time
 
 from vision.vision_manager import VisionManager
 
+
 class Main(object):
 	def __init__(self, app, robot_stream, debug_mode):
 		self.debug_mode = debug_mode
