@@ -11,7 +11,6 @@ import speech_recognition as sr
 import traceback
 import unidecode
 
-from naoqi import ALProxy
 from std_msgs.msg import String
 from pepper_microphone import PepperSpeechRecognitionEngine
 
@@ -25,9 +24,8 @@ class SpeechRecognizer:
 	def __init__(self):
 		self.activated = True
 		if robot_input:
-			#self.leds_proxy = ALProxy('ALLeds', cfg.ip, cfg.port)
 			rospy.init_node('mic_listener', anonymous=True)
-			self.publisher = rospy.Publisher('speech_text', String, queue_size=10)
+			self.publisher = rospy.Publisher('commands_text', String, queue_size=10)
 
 		if audio_stream:
 			if not robot_input:
@@ -49,9 +47,7 @@ class SpeechRecognizer:
 		if audio_stream:
 			if robot_input:
 				print("Listening")
-				#self.leds_proxy.fadeRGB('FaceLeds', "blue", 1)
 				audio = self.pepper_engine.listen()
-				#self.leds_proxy.fadeRGB('FaceLeds', "white", 1)
 				print("Recognizing")
 
 				response['text'] = self.pepper_engine.recognize_google(audio, language, False)
@@ -61,6 +57,8 @@ class SpeechRecognizer:
 					audio = self.engine.listen(source)
 				try:
 					response['text'] = self.engine.recognize_google(audio, language=language)
+					if response['text']:
+						response['text'] = unidecode.unidecode(response['text'])
 				except sr.RequestError:
 					response['error'] = 'API unavailable'
 				except sr.UnknownValueError:
@@ -79,8 +77,6 @@ class SpeechRecognizer:
 				speech = self.recognize_speech()
 				print(speech)
 				if speech and speech['text']:
-					speech['text'] = unidecode.unidecode(speech['text'])
-					print("----" + speech['text'])
 					self.publisher.publish(json.dumps(speech))
 					self.rate.sleep()
 

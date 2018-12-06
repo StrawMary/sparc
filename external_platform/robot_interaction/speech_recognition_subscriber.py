@@ -30,8 +30,8 @@ class SpeechManager:
 			self.leds_service = app.session.service("ALLeds")
 			self.speech_service = app.session.service("ALTextToSpeech")
 		if self.robot_stream or self.receive_commands:
-			self.recognition_subscriber = rospy.Subscriber('speech_text', String, self.callback_text)
-			self.commands_subscriber = rospy.Subscriber('/commands_json', String, self.callback_json)
+			self.recognition_subscriber = rospy.Subscriber('/commands_text', String, self.callback_text)
+			self.commands_subscriber = rospy.Subscriber('/commands_structured', String, self.callback_json)
 
 	def callback_text(self, received_data):
 		data = json.loads(received_data.data)
@@ -180,7 +180,6 @@ class SpeechManager:
 				self.clear_listen_attrs()
 				if on_success:
 					on_success(key)
-
 
 	def stop_listen(self):
 		self.clear_listen_attrs()
