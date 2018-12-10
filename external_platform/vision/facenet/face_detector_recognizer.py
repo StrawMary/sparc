@@ -3,6 +3,7 @@ from __future__ import division
 from __future__ import print_function
 
 import config as cfg
+import vision.vision_config as vision_cfg
 import cv2
 import numpy as np
 import os
@@ -17,7 +18,7 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 
 class FaceNetDetector:
-    def __init__(self, confidence_threshold=cfg.faces_recognition_threshold):
+    def __init__(self, confidence_threshold=vision_cfg.facenet_recognition_threshold):
         print('Loading facenet model...')
         self.face_cascade = cv2.CascadeClassifier(os.path.join(folder_path, 'classifier/face_cascade_default.xml'))
 
@@ -96,16 +97,16 @@ class FaceNetDetector:
             if confidence >= self.confidence_threshold:
                 result.append(([bbox[0], bbox[1], bbox[2], bbox[3]], self.people_names[class_index], confidence))
             else:
-                result.append(([bbox[0], bbox[1], bbox[2], bbox[3]], cfg.unknown_name, confidence))
+                result.append(([bbox[0], bbox[1], bbox[2], bbox[3]], vision_cfg.unknown_name, confidence))
 
         return result
 
     def draw_detections(self, image, faces):
         for (x, y, z, t), name, score in faces:
-            if name == cfg.unknown_name:
-                color = (0, 0, 255)
+            if name == vision_cfg.unknown_name:
+                color = vision_cfg.colors[vision_cfg.unknown_name]
             else:
-                color = (0, 255, 0)
+                color = vision_cfg.colors['face']
             thick = 2
             cv2.rectangle(image, (x, y), (z, t), color, thick)
             label = '%s: %.3f' % (name, score)

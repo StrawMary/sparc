@@ -3,6 +3,7 @@ import cv2
 import random
 import threading
 import time
+import vision_config as vision_cfg
 
 from vision.data_processor import DataProcessor
 from vision.facenet.face_detector_recognizer import FaceNetDetector
@@ -15,13 +16,13 @@ from vision.yolo3.object_detector import ObjectDetector as ObjectDetectorV3
 
 
 class VisionManager:
-	def __init__(self, app, robot_stream=cfg.robot_stream, display_images=cfg.display_images, debug_mode=cfg.debug_mode, detector_version="v3"):
+	def __init__(self, app, robot_stream=cfg.robot_stream, display_images=cfg.display_images, debug=cfg.debug_mode):
 		self.robot_stream = robot_stream
 		self.display_images = display_images
-		self.debug_mode = debug_mode
+		self.debug_mode = debug
 
-		if detector_version == "v2":
-			self.object_detector2 = ObjectDetectorV2()
+		if vision_cfg.object_detection_version == vision_cfg.v2:
+			self.object_detector = ObjectDetectorV2()
 		else:
 			self.object_detector = ObjectDetectorV3()
 
@@ -30,7 +31,11 @@ class VisionManager:
 		self.face_detector = FaceNetDetector()
 		self.qrcodes_handler = QRCodesHandler()
 		self.data_processor = DataProcessor()
+		self.image_provider = ImageProvider()
 		self.running = True
+
+		if cfg.robot_stream:
+			self.behavior_manager = app.session.service("ALBehaviorManager")
 
 		self.searched_target = None
 		self.found_searched_target = False
@@ -40,28 +45,11 @@ class VisionManager:
 		self.on_going_say_promise_canceled = False
 		self.timer = None
 
-		if self.robot_stream:
-			self.image_provider = ImageProvider()
-			self.image_provider.connect()
-			self.behavior_manager = app.session.service("ALBehaviorManager")
-		else:
-			#self.camera = cv2.VideoCapture("rtsp://admin:admin@192.168.0.127/play1.sdp")
-			self.camera = cv2.VideoCapture(-1)
-			self.camera.set(cv2.CAP_PROP_BUFFERSIZE, 1)
-
 	def detect(self):
 		if self.debug_mode:
 			start_time = time.time()
-		if self.robot_stream:
-			image, depth_image, camera_height, head_yaw, head_pitch = self.image_provider.get_cv_image()
-			self.image_provider.release_image()
-		else:
-			_, image = self.camera.read()
-			image = cv2.resize(image, (cfg.width, cfg.height))
-			depth_image = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
-			camera_height = 1.2
-			head_yaw = 0
-			head_pitch = 0
+
+		image, depth_image, camera_height, head_yaw, head_pitch = self.image_provider.get_image()
 
 		if len(image) == 0:
 			return [], [], []
@@ -182,10 +170,7 @@ class VisionManager:
 		return people_3d_positions, objects_3d_positions, qrcodes_3d_positions
 
 	def shut_down(self):
-		if self.robot_stream:
-			self.image_provider.disconnect()
-		else:
-			self.camera.release()
+		self.image_provider.disconnect()
 
 		if self.debug_mode:
 			cv2.destroyAllWindows()
@@ -214,7 +199,7 @@ class VisionManager:
 					self.stop_search(external_stop=False)
 					return
 			for obj in objects:
-				if obj[2] in cfg.KNOWN_LABELS and cfg.KNOWN_LABELS[obj[2]].lower() == self.searched_target.lower():
+				if obj[2].lower() == self.searched_target.lower():
 					self.found_searched_target = True
 					self.stop_search(external_stop=False)
 					return
@@ -238,7 +223,7 @@ class VisionManager:
 			self.on_success = on_success
 			self.on_fail = on_fail
 
-			self.on_going_say_promise = self.behavior_manager.runBehavior("movehead001/behavior_1", _async=True)
+			self.on_going_say_promise = self.behavior_manager.runBehavior(vision_cfg.move_head, _async=True)
 			self.on_going_say_promise.addCallback(self.move_head_callback)
 		else:
 			self.timer = threading.Timer(5, self.on_timeout, [on_success, on_fail])
@@ -257,10 +242,11 @@ class VisionManager:
 		if self.robot_stream:
 			if self.on_going_say_promise:
 				self.on_going_say_promise_canceled = external_stop
-				if self.behavior_manager and self.behavior_manager.isBehaviorRunning("movehead001/behavior_1"):
-					self.behavior_manager.stopBehavior("movehead001/behavior_1")
+				if self.behavior_manager and self.behavior_manager.isBehaviorRunning(vision_cfg.move_head):
+					self.behavior_manager.stopBehavior(vision_cfg.move_head)
 				if external_stop:
-					self.pose_manager.stand_init()
+					# Stand_init()
+					pass
 		else:
 			if self.timer:
 				self.timer.cancel()

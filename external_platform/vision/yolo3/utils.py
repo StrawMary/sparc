@@ -5,6 +5,7 @@ import time
 import math
 import torch
 import numpy as np
+import vision.vision_config as vision_cfg
 from PIL import Image, ImageDraw, ImageFont
 from torch.autograd import Variable
 
@@ -486,7 +487,7 @@ def process_bboxes(bboxes, width, height):
     return detections
 
 
-def process_detections(bboxes, width, height):
+def process_detections(bboxes, width, height, labels):
     people = []
     objects = []
     for (px, py, pw, ph, pu, confidence, class_id_tensor) in bboxes:
@@ -495,34 +496,34 @@ def process_detections(bboxes, width, height):
         x2 = min(max(int(round((px + pw/2.0) * width)), 0), width)
         y2 = min(max(int(round((py + ph/2.0) * height)), 0), height)
         class_id = class_id_tensor.item()
-        if class_id == 0:
+        if class_id == labels.index('person'):
             people.append((np.array([x1, y1, x2, y2]), float(confidence)))
         else:
-            objects.append((np.array([x1, y1, x2, y2]), float(confidence), class_id))
+            objects.append((np.array([x1, y1, x2, y2]), float(confidence), labels[class_id]))
     return people, objects
 
 
-def draw_detections(im, bboxes, values, class_ids, distances, labels, colors, thr=0.3):
+def draw_detections(im, bboxes, values, class_ids, distances, labels, thr=0.3):
     imgcv = np.copy(im)
     h, w, _ = imgcv.shape
     for i, box in enumerate(bboxes):
         if values[i] < thr:
             continue
 
-        thick = 2
+        thickness = vision_cfg.text_thickness
         if len(box) > 4:
-            color = colors[14]
+            color = vision_cfg.colors['person']
             mess = 'person %d: %.3f - %.3f m' % (box[4], values[i], distances[i])
-        elif class_ids[i] == "QRCODE":
-            color = colors[12]
+        elif class_ids[i] == vision_cfg.qrcode_label:
+            color = vision_cfg.colors[vision_cfg.qrcode_label]
             mess = '%s: %.3f m' % (values[i], distances[i])
         else:
-            color = colors[9]
-            mess = '%s: %.3f - %.3f m' % (labels[class_ids[i]], values[i], distances[i])
+            color = vision_cfg.colors['object']
+            mess = '%s: %.3f - %.3f m' % (class_ids[i], values[i], distances[i])
         cv2.rectangle(imgcv,
                       (box[0], box[1]), (box[2], box[3]),
-                      color, thick)
+                      color, thickness)
         cv2.putText(imgcv, mess, (box[0], box[1] - 12),
-                    0, 0.6, color, 2)
+                    0, 0.6, color, thickness)
 
     return imgcv

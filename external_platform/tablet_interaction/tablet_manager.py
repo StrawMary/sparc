@@ -1,10 +1,12 @@
 import config as cfg
 import json
+import tablet_interaction.tablet_interaction_config as tablet_cfg
 import threading
+import speech.speech_config as speech_cfg
 import urllib2
 
 
-class RemindersManager:
+class TabletManager:
     def __init__(self, app, say_method):
         if cfg.robot_stream:
             self.tabletService = app.session.service("ALTabletService")
@@ -18,12 +20,12 @@ class RemindersManager:
 
     def on_interaction_intent(self, intent):
         if cfg.robot_stream and self.running:
-            if intent == cfg.NEXT_INTENT or intent == cfg.PREVIOUS_INTENT:
+            if intent == speech_cfg.NEXT_INTENT or intent == speech_cfg.PREVIOUS_INTENT:
                 script = "document.getElementById(\"" + intent + "\").submit()"
                 self.tabletService.executeJS(script)
 
     def get_reminders_count(self, target, on_success=None, on_fail=None):
-        parsed_json = json.loads(urllib2.urlopen(cfg.REMINDERS_COUNT_URL).read())
+        parsed_json = json.loads(urllib2.urlopen(tablet_cfg.REMINDERS_COUNT_URL).read())
         return int(parsed_json["count"])
 
     def display_health(self, url, on_success=None, on_fail=None):
@@ -32,7 +34,7 @@ class RemindersManager:
             self.on_fail = on_fail
             if self.tabletService:
                 self.tabletService.showWebview(url)
-                self.timer = threading.Timer(cfg.TIME_SHOWING_HEALTH_MEASUREMENTS, self.on_timeout, [on_success])
+                self.timer = threading.Timer(tablet_cfg.TIME_SHOWING_HEALTH_MEASUREMENTS, self.on_timeout, [on_success])
                 self.timer.start()
             else:
                 self.on_fail()
@@ -62,8 +64,8 @@ class RemindersManager:
                 self.clear_attrs()
 
     def get_url_for_target(self, target):
-        if target in cfg.HEALTH_MEASUREMENTS_URL:
-            return cfg.HEALTH_MEASUREMENTS_URL[target]
+        if target in tablet_cfg.HEALTH_MEASUREMENTS_URL:
+            return tablet_cfg.HEALTH_MEASUREMENTS_URL[target]
 
     def get_reminder(self, reminder_text):
         self.say(reminder_text)
@@ -76,7 +78,7 @@ class RemindersManager:
         self.tabletService.executeJS(script)
 
     def get_url_for_person(self, target):
-        return cfg.REMINDERS_URL
+        return tablet_cfg.REMINDERS_URL
 
     def clear_display(self):
         if self.timer:

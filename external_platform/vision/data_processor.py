@@ -1,4 +1,4 @@
-import config as cfg
+import vision_config as cfg
 import cv2
 import math
 import numpy as np
@@ -169,7 +169,7 @@ class DataProcessor:
         positions = []
         object_angles = self.compute_objects_angles(objects)
 
-        for i, (_, value, class_id) in enumerate(objects):
+        for i, (_, value, label) in enumerate(objects):
             if distances[i] < 5.0:
                 position = self.get_3d_position(
                     distances[i],
@@ -178,10 +178,10 @@ class DataProcessor:
                     head_pitch,
                     camera_height
                 )
-                if class_id == 'QRCODE':
+                if label == cfg.qrcode_label:
                     positions.append((value.lower(), position))
                 else:
-                    positions.append((class_id, position))
+                    positions.append((label, position))
 
         return positions
 

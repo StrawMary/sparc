@@ -1,6 +1,7 @@
 import cv2
 import os
 import numpy as np
+import vision.vision_config as vision_cfg
 from .im_transform import imcv2_affine_trans, imcv2_recolor
 # from box import BoundBox, box_iou, prob_compare
 from nms_wrapper import nms
@@ -200,8 +201,6 @@ def get_bbox_targets(images, gt_boxes, cls_inds, dontcares, cfg):
 
 
 def draw_detections(im, bboxes, values, class_ids, distances, cfg, thr=0.3):
-    # draw image
-    colors = cfg.colors
     labels = cfg.label_names
 
     imgcv = np.copy(im)
@@ -210,20 +209,20 @@ def draw_detections(im, bboxes, values, class_ids, distances, cfg, thr=0.3):
         if values[i] < thr:
             continue
 
-        thick = 2
+        thickness = vision_cfg.text_thickness
         if len(box) > 4:
-            color = colors[14]
+            color = vision_cfg.colors['person']
             mess = 'person %d: %.3f - %.3f m' % (box[4], values[i], distances[i])
-        elif class_ids[i] == "QRCODE":
-            color = colors[12]
+        elif class_ids[i] == vision_cfg.qrcode_label:
+            color = vision_cfg.colors[vision_cfg.qrcode_label]
             mess = '%s: %.3f m' % (values[i], distances[i])
         else:
-            color = colors[9]
-            mess = '%s: %.3f - %.3f m' % (labels[class_ids[i]], values[i], distances[i])
+            color = vision_cfg.colors['object']
+            mess = '%s: %.3f - %.3f m' % (class_ids[i], values[i], distances[i])
         cv2.rectangle(imgcv,
                       (box[0], box[1]), (box[2], box[3]),
-                      (color), thick)
+                      color, thickness)
         cv2.putText(imgcv, mess, (box[0], box[1] - 12),
-                    0, 0.6, color, 2)
+                    0, 0.6, color, thickness)
 
     return imgcv

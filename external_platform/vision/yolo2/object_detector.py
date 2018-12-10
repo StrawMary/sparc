@@ -1,5 +1,5 @@
 import cfgs.config as cfg
-import config as sparc_cfg
+import vision.vision_config as vision_cfg
 import cv2
 import numpy as np
 import utils.yolo as yolo_utils
@@ -7,7 +7,7 @@ import utils.network as net_utils
 
 from darknet import Darknet19
 
-person_class_id = 14
+person_class_id = cfg.label_names.index('person')
 h5_fname = 'models/yolo-voc.weights.h5'
 
 
@@ -19,6 +19,7 @@ class ObjectDetector:
 		net_utils.load_net(trained_model, self.net)
 		self.net.cuda()
 		self.net.eval()
+		self.labels = cfg.label_names
 		print('Loading model succeded.')
 
 	def detect(self, image):
@@ -32,19 +33,16 @@ class ObjectDetector:
 		prob_pred = prob_pred.data.cpu().numpy()
 
 		bboxes, scores, classes = yolo_utils.postprocess(
-			bbox_pred, iou_pred, prob_pred, image.shape, cfg, sparc_cfg.yolo_people_detection_threshold)
+			bbox_pred, iou_pred, prob_pred, image.shape, cfg, vision_cfg.yolo_people_detection_threshold)
 
-		people = [(bboxes[i], scores[i]) for i in range(len(classes)) if classes[i] == 14]
+		people = [(bboxes[i], scores[i]) for i in range(len(classes)) if classes[i] == person_class_id]
 
-		objects = [(bboxes[i], scores[i], classes[i])
+		objects = [(bboxes[i], scores[i], self.labels[classes[i]])
 						for i in range(len(classes))
-						if classes[i] != 14 and
-							scores[i] >= sparc_cfg.yolo_object_detection_threshold]
+						if classes[i] != person_class_id and
+							scores[i] >= vision_cfg.yolo_object_detection_threshold]
 
 		return people, objects
-
-	def get_labels(self):
-		return cfg.label_names
 
 	def draw_people_detections(self, image, people, people_ids, distances):
 		bboxes = [np.append(people[i][0], people_ids[i]) for i in range(len(people))]

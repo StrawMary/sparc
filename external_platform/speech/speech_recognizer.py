@@ -2,9 +2,6 @@ import sys
 sys.path.append('../')
 
 import config as cfg
-import sys
-sys.path.insert(0, cfg.naoqi_path)
-
 import json
 import rospy
 import speech_recognition as sr
@@ -12,23 +9,16 @@ import traceback
 import unidecode
 
 from std_msgs.msg import String
-from pepper_microphone import PepperSpeechRecognitionEngine
-
-audio_stream = True
-robot_input = True
-
-language = cfg.language
+from speech.pepper_microphone import PepperSpeechRecognitionEngine
 
 
 class SpeechRecognizer:
-	def __init__(self):
-		self.activated = True
-		if robot_input:
-			rospy.init_node('mic_listener', anonymous=True)
-			self.publisher = rospy.Publisher('commands_text', String, queue_size=10)
+	def __init__(self, audio_stream=cfg.audio_stream):
+		self.audio_stream = audio_stream
+		self.publisher = rospy.Publisher('commands_text', String, queue_size=10)
 
-		if audio_stream:
-			if not robot_input:
+		if self.audio_stream:
+			if not cfg.robot_stream:
 				self.microphone = sr.Microphone()
 				self.engine = sr.Recognizer()
 			else:
@@ -36,27 +26,29 @@ class SpeechRecognizer:
 
 		self.rate = rospy.Rate(10)
 
-		print('Used language for recognition: ' + language)
+		print('Used language for recognition: ' + cfg.language)
 
 	def recognize_speech(self):
 		response = {
 			'text': None,
 			'error': None,
-			'language': language
+			'language': cfg.language
 		}
-		if audio_stream:
-			if robot_input:
+		if self.audio_stream:
+			if cfg.robot_stream:
 				print("Listening")
 				audio = self.pepper_engine.listen()
 				print("Recognizing")
 
-				response['text'] = self.pepper_engine.recognize_google(audio, language, False)
+				response['text'] = self.pepper_engine.recognize_google(audio, cfg.language, False)
+				if response['text']:
+					response['text'] = unidecode.unidecode(response['text'])
 			else:
 				with self.microphone as source:
 					self.engine.adjust_for_ambient_noise(source)
 					audio = self.engine.listen(source)
 				try:
-					response['text'] = self.engine.recognize_google(audio, language=language)
+					response['text'] = self.engine.recognize_google(audio, language=cfg.language)
 					if response['text']:
 						response['text'] = unidecode.unidecode(response['text'])
 				except sr.RequestError:
@@ -75,7 +67,7 @@ class SpeechRecognizer:
 		try:
 			while not rospy.is_shutdown():
 				speech = self.recognize_speech()
-				print(speech)
+				print("Recognized speech:\n\t%s" % speech)
 				if speech and speech['text']:
 					self.publisher.publish(json.dumps(speech))
 					self.rate.sleep()
@@ -92,9 +84,9 @@ class SpeechRecognizer:
 
 
 if __name__ == '__main__':
-	response = raw_input("Audio stream? [y/n]: ")
-	if response == 'no' or response == 'n':
-		audio_stream = False
+	user_response = raw_input("Audio stream? [y/n]: ")
+	if user_response == 'no' or user_response == 'n':
+		use_audio_stream = False
 
-	speech_recognizer = SpeechRecognizer()
+	speech_recognizer = SpeechRecognizer(use_audio_stream)
 	speech_recognizer.run()

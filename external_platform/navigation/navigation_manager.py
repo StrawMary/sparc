@@ -1,5 +1,6 @@
 import config as cfg
 import math
+import navigation.navigation_config as navig_cfg
 import os.path
 import pickle
 import random
@@ -12,14 +13,13 @@ import time
 from actionlib_msgs.msg import GoalStatusArray, GoalID
 from copy import deepcopy
 from enum import Enum
-from geometry_msgs.msg import Point, Pose, PoseStamped, Vector3
+from geometry_msgs.msg import Pose, PoseStamped, Vector3
 from move_base_msgs.msg import MoveBaseActionFeedback, MoveBaseActionResult
+from navigation.target import Target
+from robot_localization import PepperLocalization
 from scipy.spatial import distance
 from std_msgs.msg import Header
 from visualization_msgs.msg import Marker, MarkerArray
-
-from navigation.target import Target
-from robot_localization import PepperLocalization
 
 
 class ClassType(Enum):
@@ -167,14 +167,13 @@ class NavigationManager:
 				targets.append(show_target)
 
 		elif value == 'objects':
-			for (class_id, position) in data:  # info = [class_id, position]
-				if class_id in cfg.KNOWN_LABELS:
-					show_target = Target(
-						class_type=ClassType.OBJECT,
-						label=str(cfg.KNOWN_LABELS[class_id]),
-						coordinates=position
-					)
-					targets.append(show_target)
+			for (label, position) in data:  # info = [label, position]
+				show_target = Target(
+					class_type=ClassType.OBJECT,
+					label=str(label),
+					coordinates=position
+				)
+				targets.append(show_target)
 
 		self.show_targets(targets)
 
@@ -206,7 +205,7 @@ class NavigationManager:
 					pose=deepcopy(position.pose),
 					scale=Vector3(0.2, 0.2, 0.2),
 					header=Header(frame_id='odom'),
-					color=cfg.colors[self.encountered_positions[label][0]],
+					color=navig_cfg.colors[self.encountered_positions[label][0]],
 					text=label)
 				markers.append(marker)
 				i += 1
@@ -218,7 +217,7 @@ class NavigationManager:
 					pose=position.pose,
 					scale=Vector3(0.2, 0.2, 0.2),
 					header=Header(frame_id='odom'),
-					color=cfg.colors[self.encountered_positions[label][0]],
+					color=navig_cfg.colors[self.encountered_positions[label][0]],
 					text=label
 				)
 				markers.append(marker2)
@@ -270,7 +269,7 @@ class NavigationManager:
 			if target.label in self.encountered_positions:
 				for existing_position in self.encountered_positions[target.label][1:]:
 					if self.compute_euclidian_distance(existing_position.pose.position,
-							pose_in_map.pose.position) < cfg.objects_distance_threshold:
+							pose_in_map.pose.position) < navig_cfg.objects_distance_threshold:
 						matched = True
 				if not matched:
 					self.encountered_positions[target.label].append(pose_in_map)

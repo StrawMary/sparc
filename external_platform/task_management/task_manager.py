@@ -1,15 +1,18 @@
-import config as cfg
 import heapq
+import tablet_interaction.tablet_interaction_config as tablet_cfg
+import task_management.tasks_config as tasks_cfg
+import speech.speech_config as speech_cfg
 
 from enum import Enum
 from environment_interaction.environment_manager import EnvironmentManager
 from navigation.navigation_manager import NavigationManager
 from navigation.pose_manager import PepperPoseManager
-from robot_interaction.speech_recognition_subscriber import SpeechManager
-from task_management.task import TaskStatus, MoveToTask, SayTask, ListenTask, SearchPersonTask, ShowURLTask, ActuationTask
+from tablet_interaction.tablet_manager import TabletManager
 from task_management.behaviors import *
+from task_management.commands_processor import CommandsProcessor
+from task_management.task import TaskStatus, MoveToTask, SayTask, ListenTask, SearchPersonTask, ShowURLTask, ActuationTask
+from speech.speech_manager import SpeechManager
 from vision.vision_manager import VisionManager
-from robot_interaction.reminders import RemindersManager
 
 
 class TaskType(Enum):
@@ -21,45 +24,48 @@ class TaskType(Enum):
 class TaskManager:
 	def __init__(self, app):
 		self.ongoing_tasks = []
-		self.vision_manager = VisionManager(app)
-		self.speech_manager = SpeechManager(app, self.create_behavior)
-		self.navigation_manager = NavigationManager()
-		self.pose_manager = PepperPoseManager()
-		self.reminders_manager = RemindersManager(app, self.speech_manager.say_async)
-		self.environment_manager = EnvironmentManager()
 		self.current_task = None
 
+		self.environment_manager = EnvironmentManager()
+		self.navigation_manager = NavigationManager()
+		self.pose_manager = PepperPoseManager()
+		self.speech_manager = SpeechManager(app)
+		self.tablet_manager = TabletManager(app, self.speech_manager.say_async)
+		self.vision_manager = VisionManager(app)
+
+		self.commands_manager = CommandsProcessor(self.create_behavior)
+
 	def create_behavior(self, data):
-		if data['intent'] == cfg.STOP_INTENT:
+		if data['intent'] == speech_cfg.STOP_INTENT:
 			self.stop_task(self.current_task)
 			return
 
-		if data['intent'] == cfg.NEXT_INTENT or data['intent'] == cfg.PREVIOUS_INTENT:
-			self.reminders_manager.on_interaction_intent(data['intent'])
+		if data['intent'] == speech_cfg.NEXT_INTENT or data['intent'] == speech_cfg.PREVIOUS_INTENT:
+			self.tablet_manager.on_interaction_intent(data['intent'])
 			return
 
-		if data['intent'] == cfg.SEARCH_INTENT:
+		if data['intent'] == speech_cfg.SEARCH_INTENT:
 			behavior_head = get_search_behavior(self, data['mandatory_entities']['target'])
-		elif data['intent'] == cfg.GO_TO_INTENT:
+		elif data['intent'] == speech_cfg.GO_TO_INTENT:
 			behavior_head = get_go_to_behavior(self, data['mandatory_entities']['target'])
-		elif data['intent'] == cfg.FIND_INTENT:
+		elif data['intent'] == speech_cfg.FIND_INTENT:
 			behavior_head = get_find_behavior(self, data['mandatory_entities']['target'])
-		elif data['intent'] == cfg.REMINDERS_INTENT:
+		elif data['intent'] == speech_cfg.REMINDERS_INTENT:
 			behavior_head = get_reminders_behavior(self, data['mandatory_entities']['target'])
-		elif data['intent'] == cfg.HEALTH_INTENT:
+		elif data['intent'] == speech_cfg.HEALTH_INTENT:
 			behavior_head = get_health_behaviour(self, data['mandatory_entities']['health_entity'])
-		elif data['intent'] == cfg.ACTUATION_INTENT:
+		elif data['intent'] == speech_cfg.ACTUATION_INTENT:
 			behavior_head = get_actuators_behaviour(self, data['mandatory_entities']['target'], data['optional_entities'])
-		elif data['intent'] == cfg.SAY_INTENT:
-			if data['mandatory_entities']['target'] in cfg.presentations:
-				response = cfg.presentations[data['mandatory_entities']['target']]
+		elif data['intent'] == speech_cfg.SAY_INTENT:
+			if data['mandatory_entities']['target'] in speech_cfg.presentations:
+				response = speech_cfg.presentations[data['mandatory_entities']['target']]
 				if callable(response):
 					response = response(data['optional_entities'])
 				behavior_head = get_say_behavior(self, response)
 			else:
-				behavior_head = get_say_behavior(self, cfg.presentations['default'])
-		elif data['intent'] == cfg.HELLO_INTENT:
-			behavior_head = get_say_behavior(self, cfg.hello_response)
+				behavior_head = get_say_behavior(self, speech_cfg.presentations['default'])
+		elif data['intent'] == speech_cfg.HELLO_INTENT:
+			behavior_head = get_say_behavior(self, speech_cfg.hello_response)
 		else:
 			return
 
@@ -72,7 +78,7 @@ class TaskManager:
 						   None,
 						   None,
 						   self.add_task_to_queue,
-						   cfg.SAY_PRIOR,
+						   tasks_cfg.SAY_PRIOR,
 						   text)
 			return task
 		return None
@@ -80,12 +86,12 @@ class TaskManager:
 	def create_task_listen(self, keywords):
 		if keywords:
 			task = ListenTask(self.speech_manager.listen,
-						   self.speech_manager.stop_listen,
-						   None,
-						   None,
-						   self.add_task_to_queue,
-						   cfg.LISTEN_PRIOR,
-						   keywords)
+							self.speech_manager.stop_listen,
+							None,
+							None,
+							self.add_task_to_queue,
+							tasks_cfg.LISTEN_PRIOR,
+							keywords)
 			return task
 		return None
 
@@ -96,7 +102,7 @@ class TaskManager:
 									None,
 									None,
 									self.add_task_to_queue,
-									cfg.SEARCH_PRIOR,
+									tasks_cfg.SEARCH_PRIOR,
 									target)
 			return task
 		return None
@@ -108,32 +114,32 @@ class TaskManager:
 							  None,
 							  None,
 							  self.add_task_to_queue,
-							  cfg.GO_TO_PRIOR,
+							  tasks_cfg.GO_TO_PRIOR,
 							  self.navigation_manager.get_coordinate_for_label(target))
 			return task
 		return None
 
 	def create_task_show_reminders(self, target):
 		if target:
-			task = ShowURLTask(self.reminders_manager.display_reminders,
-							   self.reminders_manager.clear_display,
+			task = ShowURLTask(self.tablet_manager.display_reminders,
+							   self.tablet_manager.clear_display,
 							   None,
 							   None,
 							   self.add_task_to_queue,
-							   cfg.SHOW_REMINDERS_PRIOR,
-							   self.reminders_manager.get_url_for_person(target))
+							   tasks_cfg.SHOW_REMINDERS_PRIOR,
+							   self.tablet_manager.get_url_for_person(target))
 			return task
 		return None
 
 	def create_task_show_health_measurements(self, target):
-		if target in cfg.HEALTH_MEASUREMENTS_URL:
-			task = ShowURLTask(self.reminders_manager.display_health,
-								 self.reminders_manager.clear_display,
-								 None,
-								 None,
-								 self.add_task_to_queue,
-								 cfg.HEALTH_PRIOR,
-								 self.reminders_manager.get_url_for_target(target))
+		if target in tablet_cfg.HEALTH_MEASUREMENTS_URL:
+			task = ShowURLTask(self.tablet_manager.display_health,
+							   self.tablet_manager.clear_display,
+							   None,
+							   None,
+							   self.add_task_to_queue,
+							   tasks_cfg.HEALTH_PRIOR,
+							   self.tablet_manager.get_url_for_target(target))
 			return task
 		return None
 
@@ -146,7 +152,7 @@ class TaskManager:
 							 None,
 							 None,
 							 self.add_task_to_queue,
-							 cfg.ACTUATION_PRIOR,
+							 tasks_cfg.ACTUATION_PRIOR,
 							 target,
 							 optional_entities)
 		return task

@@ -27,20 +27,19 @@ class ObjectDetector:
             namesfile = os.path.join(folder_path, 'cfg/names')
 
         with open(namesfile, 'r') as f:
-            self.classes = [line.strip() for line in f.readlines()]
-            self.colors = np.random.uniform(0, 255, size=(len(self.classes), 3))
+            self.labels = [line.strip() for line in f.readlines()]
         print('Loading model succeded.')
 
     def detect(self, image):
         resized_image = cv2.resize(image, (self.network.width, self.network.height))
         bboxes = detect(self.network, resized_image, self.conf_threshold, self.nms_threshold, self.use_cuda)
         height, width, _ = image.shape
-        return process_detections(bboxes, 640, 480)
+        return process_detections(bboxes, width, height, self.labels)
 
     def draw_detections(self, image, detections):
         for (class_id, x, y, z, t, score) in detections:
-            label = str(self.classes[class_id]) + ': ' + str(score)
-            color = self.colors[class_id]
+            label = str(self.labels[class_id]) + ': ' + str(score)
+            color = self.labels[class_id]
             cv2.rectangle(image, (x,y), (z,t), color, 2)
             cv2.putText(image, label, (x-10,y-10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
         return image
@@ -49,7 +48,7 @@ class ObjectDetector:
         bboxes = [np.append(people[i][0], people_ids[i]) for i in range(len(people))]
         scores = [people[i][1] for i in range(len(people))]
         class_ids = [0 for i in range(len(people))]
-        im2show = draw_detections(image, bboxes, scores, class_ids, distances, self.classes, self.colors)
+        im2show = draw_detections(image, bboxes, scores, class_ids, distances, self.labels)
 
         if im2show.shape[0] > 1100:
             im2show = cv2.resize(
@@ -60,7 +59,7 @@ class ObjectDetector:
         bboxes = [obj[0] for obj in objects]
         values = [obj[1] for obj in objects]
         class_ids = [obj[2] for obj in objects]
-        im2show = draw_detections(image, bboxes, values, class_ids, distances, self.classes, self.colors)
+        im2show = draw_detections(image, bboxes, values, class_ids, distances, self.labels)
 
         if im2show.shape[0] > 1100:
             im2show = cv2.resize(

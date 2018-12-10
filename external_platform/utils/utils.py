@@ -1,7 +1,8 @@
-from weather import Weather, Unit
+from calendar import TimeEncoding, month_name
 from datetime import datetime
 from dateutil import parser
-import datetime
+from weather import Weather, Unit
+
 
 # Auxiliary structure for 'time' subject.
 class Dict(dict):
@@ -22,7 +23,9 @@ def get_weather_report(optional_parameters):
 	for forecast in forecasts:
 		dt = parser.parse(forecast.date)
 		if dt.day == date.day and dt.month == date.month and dt.year == date.year:
-			return 'It will be ' + forecast.text + '. The maximum temperature is ' + forecast.high + ' degrees celsius'
+			with TimeEncoding("en_US.UTF-8") as encoding:
+				month = month_name[date.month]
+			return 'On %s %s it will be %s. The maximum temperature is %s degrees celsius' % (date.day, month, forecast.text, forecast.high)
 
 
 def get_time_presentation(optional_parameters):
