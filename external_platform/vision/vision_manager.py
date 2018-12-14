@@ -1,5 +1,6 @@
 import config as cfg
 import cv2
+import os
 import random
 import threading
 import time
@@ -7,6 +8,7 @@ import vision_config as vision_cfg
 
 from vision.data_processor import DataProcessor
 from vision.facenet.face_detector_recognizer import FaceNetDetector
+from vision.facenet.train_network import *
 from vision.image_provider.image_provider_ros import ImageProvider
 from vision.qrcodes_handler.qrcodes_handler import QRCodesHandler
 from vision.segmentation.human_segmentation import Segmentation
@@ -34,11 +36,14 @@ class VisionManager:
 		self.image_provider = ImageProvider()
 		self.running = True
 
+		self.face_detector_mutex = threading.Lock()
+
 		if cfg.robot_stream:
 			self.behavior_manager = app.session.service("ALBehaviorManager")
 
 		self.searched_target = None
 		self.found_searched_target = False
+		self.target_to_remember = None
 		self.on_success = None
 		self.on_fail = None
 		self.on_going_say_promise = None
@@ -88,7 +93,9 @@ class VisionManager:
 			print("\t\t SORT: \t %s seconds" % (track_time - qr_time))
 
 		# Use FaceNet to detect and recognize faces in RGB image.
+		self.face_detector_mutex.acquire()
 		faces = self.face_detector.detect(image)
+		self.face_detector_mutex.release()
 
 		if self.debug_mode:
 			facenet_time = time.time()
@@ -143,6 +150,7 @@ class VisionManager:
 		)
 
 		self.check_detected_target(people_data, qrcodes, objects)
+		self.try_remember_target(image, people_data, qrcodes, objects)
 
 		if self.debug_mode:
 			pos_time = time.time()
@@ -154,7 +162,9 @@ class VisionManager:
 																people_distances)
 			image = self.object_detector.draw_object_detections(image, objects, object_distances)
 			image = self.object_detector.draw_object_detections(image, qrcodes, qrcodes_distances)
+			self.face_detector_mutex.acquire()
 			image = self.face_detector.draw_detections(image, faces)
+			self.face_detector_mutex.release()
 			depth_image = self.data_processor.draw_squares(depth_image, people_depth_bboxes)
 			cv2.imshow('Segmented', segmented_image)
 			cv2.imshow('Depth', depth_image)
@@ -178,8 +188,9 @@ class VisionManager:
 	def is_running(self):
 		return self.running
 
-	def clear_search_attrs(self):
+	def clear_attrs(self):
 		self.searched_target = None
+		self.target_to_remember = None
 		self.found_searched_target = False
 		self.on_success = None
 		self.on_fail = None
@@ -212,7 +223,7 @@ class VisionManager:
 				self.on_success()
 			else:
 				self.on_fail()
-		self.clear_search_attrs()
+		self.clear_attrs()
 
 	def search_target(self, target, on_success=None, on_fail=None):
 		if not target:
@@ -251,3 +262,71 @@ class VisionManager:
 			if self.timer:
 				self.timer.cancel()
 			self.timer = None
+
+	def try_remember_target(self, image, people, qrcodes, objects):
+		if self.target_to_remember:
+			[target, target_type, images_no] = self.target_to_remember
+			if images_no == 0:
+				self.target_to_remember = None
+				t = threading.Thread(target=self.retrain_recognition_network, args=(target_type,))
+				t.start()
+				return
+
+			if target_type == "person":
+				closest_face = None
+				closest_face_dimension = 0
+				for person in people:
+					if "face_bbox" in person:
+						left, top, right, bottom = person["face_bbox"]
+						face_dimension = (right - left) * (bottom - top)
+						if face_dimension > closest_face_dimension:
+							closest_face = person["face_bbox"]
+							closest_face_dimension = face_dimension
+
+				if closest_face:
+					left, top, right, bottom = closest_face
+					left -= 10
+					top -= 10
+					right += 10
+					bottom += 10
+					cropped_image = image[top:top+(bottom-top), left:left+(right-left)]
+					self.save_image(cropped_image, target, images_no)
+					self.target_to_remember[2] -= 1
+			else:
+				if self.on_fail():
+					self.on_fail()
+				self.clear_attrs()
+
+	def remember_target(self, target, target_type="person", on_success=None, on_fail=None):
+		if not target:
+			if on_fail:
+				on_fail()
+		self.on_success = on_success
+		self.on_fail = on_fail
+		self.target_to_remember = [target, target_type, vision_cfg.remember_images_no]
+
+	def stop_remember(self):
+		self.clear_attrs()
+
+	def save_image(self, image, directory_name, image_no):
+		path = os.path.join(cfg.new_people_path, directory_name)
+		if not os.path.isdir(path):
+			os.mkdir(path)
+
+		cv2.resize(image, (int(len(image) *1.5), int(len(image[0])*1.5)))
+		cv2.imwrite(os.path.join(path, str(image_no) + '.png'), image)
+
+	def retrain_recognition_network(self, target_type):
+		if target_type != "person":
+			if self.on_fail:
+				self.on_fail()
+		else:
+			train_network("new_faces_classifier")
+			new_face_detector = FaceNetDetector("new_faces_classifier")
+			self.face_detector_mutex.acquire()
+			self.face_detector = new_face_detector
+			self.face_detector_mutex.release()
+			if self.on_success:
+				self.on_success()
+
+		self.clear_attrs()

@@ -97,8 +97,8 @@ def get_simple_listen_behavior(task_manager):
 	say2 = task_manager.create_task_say("Yes, it is a test.")
 	say3 = task_manager.create_task_say("No, it is not a test.")
 	say4 = task_manager.create_task_say("Sorry, I didn't hear you.")
-	listen_task = task_manager.create_task_listen(['da', 'nu'])
-	success_child = {'da': say2, 'nu': say3}
+	listen_task = task_manager.create_task_listen(["da", "nu"])
+	success_child = {"da": say2, "nu": say3}
 
 	listen_task.success_child = success_child
 	listen_task.fail_child = say4
@@ -119,4 +119,33 @@ def get_actuators_behaviour(task_manager, target, optional_entities=None):
 	return say1
 
 
+def get_remember_behaviour(task_manager, optional_entities={}):
+	if 'target' in optional_entities:
+		say1 = task_manager.create_task_say("Ok, %s. Look at me for 5 seconds." % optional_entities['target'])
+		remember_task = task_manager.create_task_remember(optional_entities['target'], "person")
+		say2 = task_manager.create_task_say("Done.")
+		say3 = task_manager.create_task_say("Sorry, I failed.")
+
+		say1.success_child = remember_task
+		remember_task.success_child = say2
+		remember_task.fail_child = say3
+		return say1
+
+	say1 = task_manager.create_task_say("Ok. What is the target name?")
+	listen = task_manager.create_task_listen()
+	say3 = task_manager.create_task_say(listen.get_result)
+	say4 = task_manager.create_task_say("Look at me for 5 seconds.")
+	say5 = task_manager.create_task_say("Sorry, I didn't hear the target name.")
+	remember_task = task_manager.create_task_remember(listen.get_result, "person")
+	say6 = task_manager.create_task_say("Done.")
+	say7 = task_manager.create_task_say("Sorry, I failed.")
+
+	say1.success_child = listen
+	listen.success_child = say3
+	say3.success_child = say4
+	listen.fail_child = say5
+	say4.success_child = remember_task
+	remember_task.success_child = say6
+	remember_task.fail_child = say7
+	return say1
 

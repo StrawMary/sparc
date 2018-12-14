@@ -10,7 +10,7 @@ external_cameras = {
 }
 
 # Detection/recognition thresholds for YOLO and Facenet.
-facenet_recognition_threshold = 0.5
+facenet_recognition_threshold = 0.01
 yolo_people_detection_threshold = 0.5
 yolo_object_detection_threshold = 0.7
 
@@ -49,3 +49,5 @@ intersection_percentage_thresh = 0.9
 # Percentage of image area for detected object to be considered at 0.4 meters.
 close_detection_area_percentage = 1.0 / 3.0
 
+# Number of faces to save to remember a target.
+remember_images_no = 20

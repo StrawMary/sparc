@@ -17,6 +17,7 @@ NEXT_INTENT = 'next'
 PREVIOUS_INTENT = 'previous'
 HEALTH_INTENT = 'health'
 ACTUATION_INTENT = 'actuate'
+REMEMBER_INTENT = 'remember'
 
 mandatory_intent_entities = {
 	SAY_INTENT: ['target'],
@@ -29,6 +30,7 @@ mandatory_intent_entities = {
 	HEALTH_INTENT: ['health_entity'],
 	STOP_INTENT: [],
 	ACTUATION_INTENT: ['target'],
+	REMEMBER_INTENT: [],
 	HELLO_INTENT: []
 }
 

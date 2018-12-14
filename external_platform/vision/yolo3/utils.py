@@ -4,6 +4,7 @@ import os
 import time
 import math
 import torch
+import traceback
 import numpy as np
 import vision.vision_config as vision_cfg
 from PIL import Image, ImageDraw, ImageFont
@@ -510,20 +511,26 @@ def draw_detections(im, bboxes, values, class_ids, distances, labels, thr=0.3):
         if values[i] < thr:
             continue
 
-        thickness = vision_cfg.text_thickness
-        if len(box) > 4:
-            color = vision_cfg.colors['person']
-            mess = 'person %d: %.3f - %.3f m' % (box[4], values[i], distances[i])
-        elif class_ids[i] == vision_cfg.qrcode_label:
-            color = vision_cfg.colors[vision_cfg.qrcode_label]
-            mess = '%s: %.3f m' % (values[i], distances[i])
-        else:
-            color = vision_cfg.colors['object']
-            mess = '%s: %.3f - %.3f m' % (class_ids[i], values[i], distances[i])
-        cv2.rectangle(imgcv,
-                      (box[0], box[1]), (box[2], box[3]),
-                      color, thickness)
-        cv2.putText(imgcv, mess, (box[0], box[1] - 12),
-                    0, 0.6, color, thickness)
+        try:
+            thickness = vision_cfg.text_thickness
+            if len(box) > 4:
+                color = vision_cfg.colors['person']
+                mess = 'person %d: %.3f - %.3f m' % (box[4], values[i], distances[i])
+            elif class_ids[i] == vision_cfg.qrcode_label:
+                color = vision_cfg.colors[vision_cfg.qrcode_label]
+                mess = '%s: %.3f m' % (values[i], distances[i])
+            else:
+                color = vision_cfg.colors['object']
+                mess = '%s: %.3f - %.3f m' % (class_ids[i], values[i], distances[i])
+            cv2.rectangle(imgcv,
+                          (box[0], box[1]), (box[2], box[3]),
+                          color, thickness)
+            cv2.putText(imgcv, mess, (box[0], box[1] - 12),
+                        0, 0.6, color, thickness)
+        except Exception as e:
+            print('Thrown exception: ' + str(e))
+            traceback.print_exc()
+            print(class_ids)
+            print(values)
 
     return imgcv

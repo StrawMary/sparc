@@ -31,5 +31,3 @@ def get_weather_report(optional_parameters):
 def get_time_presentation(optional_parameters):
 	time = datetime.now()
 	return 'It is ' + str(time.hour) + ' ' + str(time.minute)
-
-

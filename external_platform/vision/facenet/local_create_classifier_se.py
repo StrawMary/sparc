@@ -4,15 +4,14 @@ from __future__ import print_function
 
 import tensorflow as tf
 import numpy as np
-import vision.facenet.facenet as facenet
+import facenet
 import os
 import math
 import pickle
 from sklearn.svm import SVC
 
 
-import config as cfg
-folder_path = os.path.join(cfg.project_path, 'external_platform/vision/facenet/')
+folder_path = './'
 
 
 def create_new_classifier(classifier_name="faces_classifier"):

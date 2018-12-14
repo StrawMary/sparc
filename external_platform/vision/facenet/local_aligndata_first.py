@@ -6,11 +6,10 @@ from scipy import misc
 import os
 import tensorflow as tf
 import numpy as np
-import vision.facenet.facenet as facenet
-import vision.facenet.detect_face as detect_face
+import facenet
+import detect_face
 
-import config as cfg
-folder_path = os.path.join(cfg.project_path, 'external_platform/vision/facenet/')
+folder_path = './'
 
 
 def align_data():

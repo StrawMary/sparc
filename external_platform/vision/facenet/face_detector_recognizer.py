@@ -18,7 +18,7 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 
 class FaceNetDetector:
-    def __init__(self, confidence_threshold=vision_cfg.facenet_recognition_threshold):
+    def __init__(self, classifier_name="faces_classifier", confidence_threshold=vision_cfg.facenet_recognition_threshold):
         print('Loading facenet model...')
         self.face_cascade = cv2.CascadeClassifier(os.path.join(folder_path, 'classifier/face_cascade_default.xml'))
 
@@ -37,7 +37,7 @@ class FaceNetDetector:
                 self.net_2Dsize = (160, 160)
                 self.net_size = 160
                 
-                self.people_names = os.listdir(os.path.join(folder_path, 'input_dir'))
+                self.people_names = os.listdir(os.path.join(folder_path, 'out_dir'))
                 self.people_names.sort()
 
                 modeldir = os.path.join(folder_path, 'pre_model/20170511-185253.pb')
@@ -48,7 +48,7 @@ class FaceNetDetector:
                 self.phase_train_placeholder = tf.get_default_graph().get_tensor_by_name('phase_train:0')
                 self.embedding_size = self.embeddings.get_shape()[1]
 
-                classifier_filename = os.path.join(folder_path, 'classifier/faces_classifier.pkl')
+                classifier_filename = os.path.join(folder_path, 'classifier/' + classifier_name + '.pkl')
                 classifier_filename_exp = os.path.expanduser(classifier_filename)
                 with open(classifier_filename_exp, 'rb') as infile:
                     (self.model, class_names) = pickle.load(infile)

@@ -10,7 +10,7 @@ from navigation.pose_manager import PepperPoseManager
 from tablet_interaction.tablet_manager import TabletManager
 from task_management.behaviors import *
 from task_management.commands_processor import CommandsProcessor
-from task_management.task import TaskStatus, MoveToTask, SayTask, ListenTask, SearchPersonTask, ShowURLTask, ActuationTask
+from task_management.task import *
 from speech.speech_manager import SpeechManager
 from vision.vision_manager import VisionManager
 
@@ -56,6 +56,9 @@ class TaskManager:
 			behavior_head = get_health_behaviour(self, data['mandatory_entities']['health_entity'])
 		elif data['intent'] == speech_cfg.ACTUATION_INTENT:
 			behavior_head = get_actuators_behaviour(self, data['mandatory_entities']['target'], data['optional_entities'])
+		elif data['intent'] == speech_cfg.REMEMBER_INTENT:
+			behavior_head = get_remember_behaviour(self, {})
+			#behavior_head = get_remember_behaviour(data['optional_entities'])
 		elif data['intent'] == speech_cfg.SAY_INTENT:
 			if data['mandatory_entities']['target'] in speech_cfg.presentations:
 				response = speech_cfg.presentations[data['mandatory_entities']['target']]
@@ -83,27 +86,38 @@ class TaskManager:
 			return task
 		return None
 
-	def create_task_listen(self, keywords):
-		if keywords:
-			task = ListenTask(self.speech_manager.listen,
-							self.speech_manager.stop_listen,
-							None,
-							None,
-							self.add_task_to_queue,
-							tasks_cfg.LISTEN_PRIOR,
-							keywords)
-			return task
-		return None
+	def create_task_listen(self, keywords=[]):
+		task = ListenTask(self.speech_manager.listen,
+						self.speech_manager.stop_listen,
+						None,
+						None,
+						self.add_task_to_queue,
+						tasks_cfg.LISTEN_PRIOR,
+						keywords)
+		return task
 
 	def create_task_search(self, target):
 		if target:
-			task = SearchPersonTask(self.vision_manager.search_target,
+			task = SearchTargetTask(self.vision_manager.search_target,
 									self.vision_manager.stop_search,
 									None,
 									None,
 									self.add_task_to_queue,
 									tasks_cfg.SEARCH_PRIOR,
 									target)
+			return task
+		return None
+
+	def create_task_remember(self, target, target_type="person"):
+		if target:
+			task = RememberTargetTask(self.vision_manager.remember_target,
+									  self.vision_manager.stop_remember,
+									  None,
+									  None,
+									  self.add_task_to_queue,
+									  tasks_cfg.REMEMBER_PRIOR,
+									  target,
+									  target_type)
 			return task
 		return None
 

@@ -10,7 +10,6 @@ class CommandsProcessor:
 		self.commands_subscriber = rospy.Subscriber('/commands_structured', String, self.on_command)
 
 	def on_command(self, received_data):
-		print(received_data.data)
 		command = json.loads(received_data.data)
 		if command:
 			self.on_command_received(command)

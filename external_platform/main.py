@@ -2,6 +2,7 @@ import config as cfg
 import sys
 sys.path.insert(0, cfg.naoqi_path)
 
+import argparse
 import qi
 import rospy
 import signal
@@ -74,6 +75,13 @@ class Main(object):
 
 if __name__ == '__main__':
 	application = None
+
+	parser = argparse.ArgumentParser(description='Run the vision component.')
+	parser.add_argument("-nr", "--not_robot_stream", help="Specify not to interact with the robot", action="store_true")
+	args = parser.parse_args()
+
+	if args.not_robot_stream:
+		cfg.robot_stream = False
 
 	if cfg.robot_stream:
 		# Initialize robot's NAOqi framework.

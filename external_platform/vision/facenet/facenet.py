@@ -332,6 +332,8 @@ def get_dataset(paths, has_class_directories=True):
         for i in range(nrof_classes):
             class_name = classes[i]
             facedir = os.path.join(path_exp, class_name)
+            if not os.path.isdir(facedir):
+                continue
             image_paths = get_image_paths(facedir)
             dataset.append(ImageClass(class_name, image_paths))
   

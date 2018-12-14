@@ -26,6 +26,9 @@ language = language_ro
 # Project path.
 project_path = '/home/sparc-308/workspace/sparc/'
 
+# Folder to save new people.
+new_people_path = '/home/sparc-308/workspace/sparc/external_platform/vision/facenet/out_dir/'
+
 # NaoQI path.
 naoqi_path = '/home/sparc-308/workspace/stefania/pynaoqi-python2.7/lib/python2.7/site-packages'
 
