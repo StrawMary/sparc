@@ -51,7 +51,7 @@ Prerequisites:
 - Start roscore on the machine running the publisher or make sure you have set the ROS_MASTER_URI before
 
 On the machine you are running the speech recognition:
-- python speech_recognition_publisher.py
+- python run_nlp.py
   - this will run a ros node publishing the detected speech on <b>speech_text</b> topic
 
 # How to run the system
