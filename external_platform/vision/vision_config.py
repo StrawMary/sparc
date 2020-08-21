@@ -10,7 +10,7 @@ external_cameras = {
 }
 
 # Detection/recognition thresholds for YOLO and Facenet.
-facenet_recognition_threshold = 0.01
+facenet_recognition_threshold = 0.5
 yolo_people_detection_threshold = 0.5
 yolo_object_detection_threshold = 0.7
 
@@ -29,10 +29,13 @@ colors = {
 	unknown_name: 	(0, 0, 255),
 }
 
+search_labels = ['__hand_up___']
+
 text_thickness = 2
 
 # Behaviour for moving the head to look around.
-move_head = "movehead001/behavior_1"
+move_head = "look-around/behavior_1"
+#move_head = "movehead001/behavior_1"
 
 # Camera fields of view information.
 width = 640

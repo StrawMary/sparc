@@ -1,4 +1,5 @@
 import sys
+import argparse
 sys.path.append('../')
 
 import rospy
@@ -21,13 +22,19 @@ if __name__ == '__main__':
 	def print_data(data):
 		pass
 
+	parser = argparse.ArgumentParser(description='Description of your program')
+	parser.add_argument('-a','--audio', action='store_true')
+	args = vars(parser.parse_args())
+
 	rospy.init_node('mic_listener', anonymous=True)
 	rospy.Subscriber('/commands_structured', String, print_data)
 
-	use_audio_stream = True
-	user_response = raw_input("Audio stream? [y/n]: ")
-	if user_response == 'no' or user_response == 'n':
-		use_audio_stream = False
+	use_audio_stream = False
+	#user_response = raw_input("Audio stream? [y/n]: ")
+
+	user_response = args['audio']
+	if user_response:
+		use_audio_stream = True
 
 	nlp = NLP(use_audio_stream)
 	nlp.run()

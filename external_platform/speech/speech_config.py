@@ -18,6 +18,8 @@ PREVIOUS_INTENT = 'previous'
 HEALTH_INTENT = 'health'
 ACTUATION_INTENT = 'actuate'
 REMEMBER_INTENT = 'remember'
+SERVE_INTENT = 'serve'
+RECOGNIZE_ACTIVITY_INTENT = 'recognize_activity'
 
 mandatory_intent_entities = {
 	SAY_INTENT: ['target'],
@@ -31,7 +33,9 @@ mandatory_intent_entities = {
 	STOP_INTENT: [],
 	ACTUATION_INTENT: ['target'],
 	REMEMBER_INTENT: [],
-	HELLO_INTENT: []
+	HELLO_INTENT: [],
+	SERVE_INTENT: [],
+	RECOGNIZE_ACTIVITY_INTENT: []
 }
 
 # Association between subjects and presentations.
@@ -41,6 +45,7 @@ presentations = {'lab308': lab308_presentation,
 				'home': robot_presentation,
 				'alex': alex_presentation,
 				'stephanie': stephanie_presentation,
+				'adina': adina_presentation,
 				'time': get_time_presentation,
 				'weather': get_weather_report,
 				'default': default_presentation}
@@ -52,4 +57,4 @@ hello_response = 'hello'
 fade_duration = 1.0
 
 # Time to wait in listen task for an answer.
-time_to_listen = 7
+time_to_listen = 700

@@ -54,6 +54,7 @@ class BlindsActuator:
 			on_success()
 
 	def run_command(self, target_id, command, on_success=None):
+		print(target_id)
 		self.publish(target_id, command)
 		self.timers[target_id] = threading.Timer(cfg.blinds_actuation_seconds, self.on_timeout, [target_id, on_success])
 		self.timers[target_id].start()

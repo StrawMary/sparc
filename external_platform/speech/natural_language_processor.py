@@ -13,6 +13,17 @@ class NaturalLanguageProcessor:
 
 	def on_text_received(self, received_data):
 		data = json.loads(received_data.data)
+
+		################################## Testing ###################################################################################################################
+		if data['text'] == 'incepe activity recognition':
+			interpreted_speech = {'intent': 'recognize_activity',
+								  'mandatory_entities': [],
+								  'optional_entities': []
+			}
+			self.commands_publisher.publish(json.dumps(interpreted_speech))
+			return
+		##############################################################################################################################################################
+
 		if not data['text']:
 			return
 		response = self.call_wit(data['text'].strip().lower(), data['language'])

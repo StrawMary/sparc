@@ -1,19 +1,26 @@
 import config as cfg
 import cv2
+import numpy as np
 import os
 import random
 import threading
 import time
 import vision_config as vision_cfg
+from shared_memory import instance
 
+import sys
+sys.path.append('./pose_estimation/')
+
+
+from vision.activity_recognition.activity_recognizer import ActivityRecognizer
 from vision.data_processor import DataProcessor
 from vision.facenet.face_detector_recognizer import FaceNetDetector
 from vision.facenet.train_network import *
 from vision.image_provider.image_provider_ros import ImageProvider
+from vision.pose_estimation.pose_estimator import PoseEstimator
 from vision.qrcodes_handler.qrcodes_handler import QRCodesHandler
-from vision.segmentation.human_segmentation import Segmentation
-from vision.tracking.tracker import Tracker
-from vision.yolo2.object_detector import ObjectDetector as ObjectDetectorV2
+#from vision.segmentation.human_segmentation import Segmentation
+from vision.deep_tracking.object_tracker import ObjectTracker
 from vision.yolo3.object_detector import ObjectDetector as ObjectDetectorV3
 
 
@@ -23,92 +30,90 @@ class VisionManager:
 		self.display_images = display_images
 		self.debug_mode = debug
 
-		if vision_cfg.object_detection_version == vision_cfg.v2:
-			self.object_detector = ObjectDetectorV2()
-		else:
-			self.object_detector = ObjectDetectorV3()
-
-		self.tracker = Tracker()
-		self.segmentation = Segmentation()
+		self.object_detector = ObjectDetectorV3()
+		self.tracker = ObjectTracker()
+		#self.segmentation = Segmentation()
 		self.face_detector = FaceNetDetector()
 		self.qrcodes_handler = QRCodesHandler()
 		self.data_processor = DataProcessor()
-		self.image_provider = ImageProvider()
+		self.pose_estimator = PoseEstimator()
+		self.activity_recognizer = ActivityRecognizer(self.on_recognized_activity, continuous_sending=False)
+		self.image_provider = ImageProvider(robot_stream)
 		self.running = True
 
 		self.face_detector_mutex = threading.Lock()
 
-		if cfg.robot_stream:
+		if self.robot_stream:
 			self.behavior_manager = app.session.service("ALBehaviorManager")
 
+		self.searched_activity = None
+		self.save_action_recognition_result_method = None
 		self.searched_target = None
 		self.found_searched_target = False
 		self.target_to_remember = None
+		self.result_key = None
 		self.on_success = None
 		self.on_fail = None
 		self.on_going_say_promise = None
 		self.on_going_say_promise_canceled = False
 		self.timer = None
 
+		self.threading_result = {'yolo': [],
+								 'facenet': [],
+								 'openpose': []}
+		self.threads = []
+
+	def get_thread_result(self, net_type, image, depth_image):
+		if net_type == 'yolo':
+			people, objects = self.object_detector.detect(image)
+			self.data_processor.square_detections(people)
+			#segmented_image, mask = self.segmentation.segment_people_bboxes(image, people)
+			self.threading_result[net_type] = (people, objects, depth_image, depth_image)
+		elif net_type == 'facenet':
+			self.face_detector_mutex.acquire()
+			self.threading_result[net_type] = self.face_detector.detect(image)
+			self.face_detector_mutex.release()
+		elif net_type == 'openpose':
+			self.threading_result[net_type] = self.pose_estimator.estimate_poses(image, depth_image)
+
 	def detect(self):
-		if self.debug_mode:
-			start_time = time.time()
+		start_time = time.time()
 
 		image, depth_image, camera_height, head_yaw, head_pitch = self.image_provider.get_image()
-
 		if len(image) == 0:
 			return [], [], []
 
-		if self.debug_mode:
-			aq_time = time.time()
-			print("\t Image getter: \t %s seconds" % (aq_time - start_time))
+		# Run neural nets in parallel.
+		for net_type in self.threading_result:
+			thread = threading.Thread(target=self.get_thread_result, args=[net_type, image, depth_image])
+			thread.start()
+			self.threads.append(thread)
+
+		for thread in self.threads:
+			thread.join()
+		self.threads = []
+
+		nets_time = time.time()
+		#print("\t Neural nets: \t %s seconds" % (nets_time - start_time))
 
 		# Use YOLO to detect people in frames.
-		people, objects = self.object_detector.detect(image)
-		self.data_processor.square_detections(people)
+		people, objects, segmented_image, mask = self.threading_result['yolo']
 
-		if self.debug_mode:
-			yolo_time = time.time()
-			print("\t\t Yolo: \t %s seconds" % (yolo_time - aq_time))
-
-		# Segment humans in detections.
-		segmented_image, mask = self.segmentation.segment_people_bboxes(image, people)
-
-		if self.debug_mode:
-			segmentation_time = time.time()
-			print("\t\t Segmentation: \t %s seconds" % (segmentation_time - yolo_time))
+		# Use OpenPose to estimate poses in frames.
+		poses, display_poses = self.threading_result['openpose']
+		self.activity_recognizer.update_people_poses(poses)
 
 		# Check for QR codes.
 		qrcodes = self.qrcodes_handler.detect_QRcodes(image)
 
-		if self.debug_mode:
-			qr_time = time.time()
-			print("\t\t QR codes: \t %s seconds" % (qr_time - segmentation_time))
-
 		# Compute people IDs.
-		people_ids = self.tracker.update_ids(people)
-
-		if self.debug_mode:
-			track_time = time.time()
-			print("\t\t SORT: \t %s seconds" % (track_time - qr_time))
+		people_ids = self.tracker.update_ids(image, people)
 
 		# Use FaceNet to detect and recognize faces in RGB image.
-		self.face_detector_mutex.acquire()
-		faces = self.face_detector.detect(image)
-		self.face_detector_mutex.release()
-
-		if self.debug_mode:
-			facenet_time = time.time()
-			print("\t\t Facenet: \t %s seconds" % (facenet_time - track_time))
+		faces = self.threading_result['facenet']
 
 		# Associate detected faces with detected people.
 		people_data = self.data_processor.associate_faces_to_people(people, faces)
-
-		if self.debug_mode:
-			association_time = time.time()
-			print("\t\t Association: \t %s seconds" % (association_time - facenet_time))
-			nets_time = time.time()
-			print("\t Neural nets: \t %s seconds" % (nets_time - aq_time))
 
 		# Compute distances.
 		people_distances, people_depth_bboxes = self.data_processor.compute_people_distances(
@@ -149,12 +154,14 @@ class VisionManager:
 			camera_height
 		)
 
+		pos_time = time.time()
+		#print("\t 3D positions: \t %s seconds" % (pos_time - nets_time))
+
+		#self.check_hand_up(display_poses, depth_image, camera_height, head_yaw, head_pitch)
 		self.check_detected_target(people_data, qrcodes, objects)
 		self.try_remember_target(image, people_data, qrcodes, objects)
 
-		if self.debug_mode:
-			pos_time = time.time()
-			print("\t 3D positions: \t %s seconds" % (pos_time - nets_time))
+		#print("Total time: \t %s seconds" % (time.time() - start_time))
 
 		if self.display_images:
 			# Show detections on RGB and depth images and display detections in RViz.
@@ -162,11 +169,13 @@ class VisionManager:
 																people_distances)
 			image = self.object_detector.draw_object_detections(image, objects, object_distances)
 			image = self.object_detector.draw_object_detections(image, qrcodes, qrcodes_distances)
+			image = self.pose_estimator.draw_poses(image, display_poses)
 			self.face_detector_mutex.acquire()
 			image = self.face_detector.draw_detections(image, faces)
+			image = self.face_detector.draw_emotions(image, faces)
 			self.face_detector_mutex.release()
 			depth_image = self.data_processor.draw_squares(depth_image, people_depth_bboxes)
-			cv2.imshow('Segmented', segmented_image)
+			#cv2.imshow('Segmented', segmented_image)
 			cv2.imshow('Depth', depth_image)
 			cv2.imshow('Image', image)
 			key = cv2.waitKey(1)
@@ -174,13 +183,12 @@ class VisionManager:
 				print('Script interrupted by user, shutting down...')
 				self.running = False
 
-			if self.debug_mode:
-				print("\t Display image: \t %s seconds" % (time.time() - pos_time))
-
-		return people_3d_positions, objects_3d_positions, qrcodes_3d_positions
+		#return people_3d_positions, objects_3d_positions, qrcodes_3d_positions
+		return people_3d_positions, [], qrcodes_3d_positions
 
 	def shut_down(self):
-		self.image_provider.disconnect()
+		if self.image_provider:
+			self.image_provider.disconnect()
 
 		if self.debug_mode:
 			cv2.destroyAllWindows()
@@ -192,10 +200,33 @@ class VisionManager:
 		self.searched_target = None
 		self.target_to_remember = None
 		self.found_searched_target = False
+		self.result_key = None
 		self.on_success = None
 		self.on_fail = None
 		self.on_going_say_promise = None
 		self.on_going_say_promise_canceled = False
+
+	def get_3d_position_for_pose(self, pose, depth_image, camera_height, head_yaw, head_pitch):
+		positions = []
+		for joint in pose:
+			if joint is not None:
+				distance = self.data_processor.get_point_distance(joint, depth_image)
+				if distance != 0.4 and distance != 5.0:
+					angles = self.data_processor.compute_point_angles(joint)
+					positions.append(self.data_processor.get_3d_position(distance, angles, head_yaw, head_pitch, camera_height))
+		position = np.mean(positions, axis=0)
+		return (position[0], position[1], 0)
+
+	def check_hand_up(self, poses, depth_image, camera_height, head_yaw, head_pitch):
+		if self.searched_target == "hand_up":
+			for _, pose in poses:
+				print(self.pose_estimator.check_hand_up(pose))
+				if self.pose_estimator.check_hand_up(pose):
+					self.found_searched_target = True
+					if self.result_key:
+						instance.add_key(self.result_key, self.get_3d_position_for_pose(pose, depth_image, camera_height, head_yaw, head_pitch))
+					self.stop_search(external_stop=False)
+					return
 
 	def check_detected_target(self, people, qrcodes, objects):
 		if self.searched_target:
@@ -225,12 +256,13 @@ class VisionManager:
 				self.on_fail()
 		self.clear_attrs()
 
-	def search_target(self, target, on_success=None, on_fail=None):
+	def search_target(self, target, result_key, on_success=None, on_fail=None):
 		if not target:
 			on_fail()
 
 		if cfg.robot_stream:
 			self.searched_target = target
+			self.result_key = result_key
 			self.on_success = on_success
 			self.on_fail = on_fail
 
@@ -330,3 +362,36 @@ class VisionManager:
 				self.on_success()
 
 		self.clear_attrs()
+
+	def recognize_activity(self, activity, save_result=None, on_success=None, on_fail=None):
+		print("Start recognizing activity")
+		if cfg.robot_stream:
+			self.searched_activity = activity
+			self.save_action_recognition_result_method = save_result
+			self.on_success = on_success
+			self.on_fail = on_fail
+
+			self.activity_recognizer.start_recognition()
+		else:
+			self.timer = threading.Timer(5, self.on_timeout, [on_success, on_fail])
+			self.timer.start()
+
+	def stop_recognizing_activity(self):
+		print("Stopped recognizing activity")
+		self.activity_recognizer.stop_recognition()
+		self.searched_activity = None
+
+	def on_recognized_activity(self, activity):
+		print(activity)
+		if self.save_action_recognition_result_method:
+			self.save_action_recognition_result_method(activity)
+		self.activity_recognizer.stop_recognition()
+		if self.searched_activity is not None and self.searched_activity != activity:
+			self.searched_activity = None
+			self.save_action_recognition_result_method = None
+			if self.on_fail:
+				self.on_fail()
+		else:
+			if self.on_success:
+				self.on_success()
+

@@ -15,12 +15,15 @@ from copy import deepcopy
 from enum import Enum
 from geometry_msgs.msg import Pose, PoseStamped, Vector3
 from move_base_msgs.msg import MoveBaseActionFeedback, MoveBaseActionResult
+from navigation.pose_manager import PepperPoseManager
 from navigation.target import Target
 from robot_localization import PepperLocalization
 from scipy.spatial import distance
 from std_msgs.msg import Header
 from visualization_msgs.msg import Marker, MarkerArray
-
+from shared_memory import instance
+import actionlib
+from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
 
 class ClassType(Enum):
 	PERSON = 1
@@ -30,16 +33,19 @@ class ClassType(Enum):
 
 
 class NavigationManager:
-	def __init__(self):
+	def __init__(self, session=None):
 		self.pepper_localization = PepperLocalization()
-
+		self.pose_manager = PepperPoseManager(session)
+		self.client = actionlib.SimpleActionClient('move_base', MoveBaseAction)
+		self.client.wait_for_server(rospy.Duration(3))
 		if cfg.robot_stream:
 			self.marker_array_publisher = rospy.Publisher('/detections', MarkerArray, queue_size=100)
-			self.move_publisher = rospy.Publisher('/move_base_simple/goal', PoseStamped, queue_size=10)
+			self.move_publisher = rospy.Publisher('/move_base/goal', PoseStamped, queue_size=10)
 
 			self.cancel_publisher = rospy.Publisher('/move_base/cancel', GoalID, queue_size=10)
 			self.feedback_subscriber = rospy.Subscriber('/move_base/feedback', MoveBaseActionFeedback, self.get_move_feedback)
 			self.result_subscriber = rospy.Subscriber('/move_base/result', MoveBaseActionResult, self.get_move_action_result)
+
 			self.status_subscriber = rospy.Subscriber('/move_base/status', GoalStatusArray, self.get_move_action_status)
 
 		self.map_pose = None
@@ -52,6 +58,15 @@ class NavigationManager:
 		self.goal_ids = []
 		self.move_action_feedback = None
 		self.timer = None
+
+	def wait_task(self, target, on_success=None, on_fail=None):
+		if target == 'head':
+			self.pose_manager.wait_for_gesture(on_success)
+		else:
+			on_fail()
+
+	def stop_waiting(self):
+		self.pose_manager.stop_waiting()
 
 	def get_move_action_status(self, data):
 		if data:
@@ -77,23 +92,56 @@ class NavigationManager:
 	def add_new_possible_goal(self, goal):
 		self.possible_goals.append(goal)
 
-	def move_to_coordinate(self, goal, on_success=None, on_fail=None):
+	def set_pose(self, pose, on_success=None, on_fail=None):
+		if self.pose_manager:
+			self.pose_manager.apply_pose(pose)
+			on_success()
+		else:
+			on_fail()
+
+	def stop_pose_movement(self):
+		if self.pose_manager:
+			self.pose_manager.stop()
+
+	def move_to_memory_target(self, memory_target, offset = 0, on_success=None, on_fail=None):
+		if memory_target == 'last_pos':
+			pose = instance.get_value('last_pos')
+			self.move_to_coordinate(pose, offset, on_success, on_fail)
+
+		if memory_target.startswith("#"):
+			pose = instance.get_value(memory_target)
+			target = Target(class_type='person', label=memory_target, coordinates=pose)
+			pose_in_map = self.get_pose_stamped(target, self.listener, True)
+			instance.add_key('last_pos', pose_in_map)
+
+			self.move_to_coordinate(pose_in_map, on_success, on_fail)
+
+	def move_to_coordinate(self, goal, offset = 0, on_success=None, on_fail=None):
 		if cfg.robot_stream:
 			goal_position = goal.pose.position
-			robot_position = self.pepper_localization.get_pose().pose.position
+			robot_pose = self.pepper_localization.get_pose()
+
+			robot_position = robot_pose.pose.position
 
 			if robot_position:
 				angle = math.atan2(goal_position.y - robot_position.y, goal_position.x - robot_position.x)
 
 				old_angles = tf.transformations.euler_from_quaternion((goal.pose.orientation.x, goal.pose.orientation.y,
 																	  goal.pose.orientation.z, goal.pose.orientation.w))
-				q = tf.transformations.quaternion_from_euler(old_angles[0], old_angles[1], angle)
+				q = tf.transformations.quaternion_from_euler(old_angles[0], old_angles[1], angle + offset)
+
 				goal.pose.orientation.x = q[0]
 				goal.pose.orientation.y = q[1]
 				goal.pose.orientation.z = q[2]
 				goal.pose.orientation.w = q[3]
 
-			self.move_publisher.publish(goal)
+			mbgoal = MoveBaseGoal()
+			mbgoal.target_pose.header.frame_id = "odom"
+			mbgoal.target_pose.header.stamp = rospy.Time.now()
+			mbgoal.target_pose.pose.position = goal.pose.position
+			mbgoal.target_pose.pose.orientation = goal.pose.orientation
+
+			self.client.send_goal(mbgoal)
 			self.on_success = on_success
 			self.on_fail = on_fail
 		else:
@@ -114,6 +162,8 @@ class NavigationManager:
 		return key in self.encountered_positions or key + '@' in self.encountered_positions
 
 	def get_closest_location(self, locations):
+		print("closest")
+		print(locations)
 		start_time = time.time()
 		min_dist = 100000
 		closest_location = None
@@ -122,6 +172,8 @@ class NavigationManager:
 		else:
 			robot_last_pose = PoseStamped()
 		for location in locations:
+			if location is None:
+				continue
 			dist = self.compute_euclidian_distance(robot_last_pose.pose.position, location.pose.position)
 			if dist < min_dist:
 				min_dist = dist
@@ -198,6 +250,8 @@ class NavigationManager:
 		i = 0
 		for label in self.encountered_positions:
 			for position in self.encountered_positions[label][1:]:
+				if position is None:
+					continue
 				marker = Marker(
 					type=Marker.TEXT_VIEW_FACING,
 					id=i,
@@ -235,13 +289,13 @@ class NavigationManager:
 		for target in targets:
 			self.show_target(target, self.listener, use_laser)
 
-	def show_target(self, target, listener, use_laser=True):
+	def get_pose_stamped(self, target, listener, use_laser):
 		if cfg.robot_stream:
 			robot_last_pose = self.pepper_localization.get_pose()
 		else:
 			robot_last_pose = PoseStamped()
 		if not robot_last_pose:
-			return
+			return None
 
 		loc = Pose()
 		loc.position.x = target.coordinates[0]
@@ -262,7 +316,11 @@ class NavigationManager:
 			pose_in_map = pose
 		pose_in_map.header.frame_id = 'odom'
 
+		return pose_in_map
+
+	def show_target(self, target, listener, use_laser=True):
 		start_time = time.time()
+		pose_in_map = self.get_pose_stamped(target, listener, use_laser)
 
 		if target.class_type == ClassType.OBJECT:
 			matched = False

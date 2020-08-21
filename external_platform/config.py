@@ -21,21 +21,22 @@ display_images = True
 # Language information.
 language_en = 'en-EN'
 language_ro = 'ro-RO'
-language = language_ro
+language = language_en
 
 # Project path.
-project_path = '/home/sparc-308/workspace/sparc/'
+project_path = '/home/amiro/workspace/sparc/'
 
 # Folder to save new people.
-new_people_path = '/home/sparc-308/workspace/sparc/external_platform/vision/facenet/out_dir/'
+new_people_path = '/home/amiro/workspace/sparc/external_platform/vision/facenet/out_dir/'
 
 # NaoQI path.
-naoqi_path = '/home/sparc-308/workspace/stefania/pynaoqi-python2.7/lib/python2.7/site-packages'
+naoqi_path = '/home/amiro/installers/naoqi/pynaoqi-python2.7-2.5.5.5-linux64/lib/python2.7/site-packages'
 
 last_known_positions_file = 'positions.p'
 
 default_positions = {
-	'alex': [5.7, 6.2, 1],
-	'stephanie': [6.0, 6.7, 1],
-	'home': [5.5, 10.0, 0]
+	"home": [5.5, 10.0, 0],
+	"stephanie": [5.0, 7.8, 0],
+	"alex": [5.1, 6.5, 0],
+	"andrei": [6.0, 8.5, 0]
 }

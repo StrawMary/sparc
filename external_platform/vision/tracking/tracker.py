@@ -182,7 +182,7 @@ class Tracker(object):
 		self.trackers = []
 		self.frame_count = 0
 
-	def update_ids(self, people):
+	def update_ids(self, image, people):
 		#dets = self.preprocess(bboxes, scores)
 		dets = self.preprocess_people(people)
 

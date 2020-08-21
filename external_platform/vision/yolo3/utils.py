@@ -14,10 +14,8 @@ import itertools
 import struct # get_image_size
 import imghdr # get_image_size
 
-
 def sigmoid(x):
     return 1.0/(math.exp(-x)+1.)
-
 
 def softmax(x):
     x = torch.exp(x - torch.max(x))
@@ -58,7 +56,6 @@ def bbox_iou(box1, box2, x1y1x2y2=True):
     uarea = area1 + area2 - carea
     return carea/uarea
 
-
 def bbox_ious(boxes1, boxes2, x1y1x2y2=True):
     if x1y1x2y2:
         mx = torch.min(boxes1[0], boxes2[0])
@@ -90,7 +87,6 @@ def bbox_ious(boxes1, boxes2, x1y1x2y2=True):
     uarea = area1 + area2 - carea
     return carea/uarea
 
-
 def nms(boxes, nms_thresh):
     if len(boxes) == 0:
         return boxes
@@ -112,14 +108,11 @@ def nms(boxes, nms_thresh):
                     box_j[4] = 0
     return out_boxes
 
-
 def convert2cpu(gpu_matrix):
     return torch.FloatTensor(gpu_matrix.size()).copy_(gpu_matrix)
 
-
 def convert2cpu_long(gpu_matrix):
     return torch.LongTensor(gpu_matrix.size()).copy_(gpu_matrix)
-
 
 def get_region_boxes(output, conf_thresh, num_classes, anchors, num_anchors, only_objectness=1, validation=False):
     anchor_step = len(anchors)/num_anchors
@@ -203,7 +196,6 @@ def get_region_boxes(output, conf_thresh, num_classes, anchors, num_anchors, onl
         print('---------------------------------')
     return all_boxes
 
-
 def plot_boxes_cv2(img, boxes, savename=None, class_names=None, color=None):
     import cv2
     colors = torch.FloatTensor([[1,0,1],[0,0,1],[0,1,1],[0,1,0],[1,1,0],[1,0,0]]);
@@ -246,7 +238,6 @@ def plot_boxes_cv2(img, boxes, savename=None, class_names=None, color=None):
         cv2.imwrite(savename, img)
     return img
 
-
 def plot_boxes(img, boxes, savename=None, class_names=None):
     colors = torch.FloatTensor([[1,0,1],[0,0,1],[0,1,1],[0,1,0],[1,1,0],[1,0,0]]);
     def get_color(c, x, max_val):
@@ -285,7 +276,6 @@ def plot_boxes(img, boxes, savename=None, class_names=None):
         img.save(savename)
     return img
 
-
 def read_truths(lab_path):
     if not os.path.exists(lab_path):
         return np.array([])
@@ -296,7 +286,6 @@ def read_truths(lab_path):
     else:
         return np.array([])
 
-
 def read_truths_args(lab_path, min_box_scale):
     truths = read_truths(lab_path)
     new_truths = []
@@ -305,7 +294,6 @@ def read_truths_args(lab_path, min_box_scale):
             continue
         new_truths.append([truths[i][0], truths[i][1], truths[i][2], truths[i][3], truths[i][4]])
     return np.array(new_truths)
-
 
 def load_class_names(namesfile):
     class_names = []
@@ -316,7 +304,6 @@ def load_class_names(namesfile):
         class_names.append(line)
     return class_names
 
-
 def image2torch(img):
     width = img.width
     height = img.height
@@ -325,7 +312,6 @@ def image2torch(img):
     img = img.view(1, 3, height, width)
     img = img.float().div(255.0)
     return img
-
 
 def do_detect(model, img, conf_thresh, nms_thresh, use_cuda=1):
     model.eval()
@@ -368,7 +354,6 @@ def do_detect(model, img, conf_thresh, nms_thresh, use_cuda=1):
         print('-----------------------------------')
     return boxes
 
-
 def read_data_cfg(datacfg):
     options = dict()
     options['gpus'] = '0,1,2,3'
@@ -386,7 +371,6 @@ def read_data_cfg(datacfg):
         options[key] = value
     return options
 
-
 def scale_bboxes(bboxes, width, height):
     import copy
     dets = copy.deepcopy(bboxes)
@@ -396,8 +380,7 @@ def scale_bboxes(bboxes, width, height):
         dets[i][2] = dets[i][2] * width
         dets[i][3] = dets[i][3] * height
     return dets
-
-
+      
 def file_lines(thefilepath):
     count = 0
     thefile = open(thefilepath, 'rb')
@@ -408,7 +391,6 @@ def file_lines(thefilepath):
         count += buffer.count('\n')
     thefile.close( )
     return count
-
 
 def get_image_size(fname):
     '''Determine the image type of fhandle and return its size.
@@ -445,10 +427,8 @@ def get_image_size(fname):
             return
         return width, height
 
-
 def logging(message):
     print('%s %s' % (time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), message))
-
 
 def detect(model, img, conf_thresh, nms_thresh, use_cuda=True):
     model.eval()
@@ -476,7 +456,6 @@ def detect(model, img, conf_thresh, nms_thresh, use_cuda=True):
     boxes = nms(boxes, nms_thresh)
     return boxes
 
-
 def process_bboxes(bboxes, width, height):
     detections = []
     for (px, py, pw, ph, pu, confidence, class_id) in bboxes:
@@ -486,7 +465,6 @@ def process_bboxes(bboxes, width, height):
         y2 = int(round((py + ph/2.0) * height))
         detections.append((class_id, x1, y1, x2, y2, float(confidence)))
     return detections
-
 
 def process_detections(bboxes, width, height, labels):
     people = []
@@ -502,7 +480,6 @@ def process_detections(bboxes, width, height, labels):
         else:
             objects.append((np.array([x1, y1, x2, y2]), float(confidence), labels[class_id]))
     return people, objects
-
 
 def draw_detections(im, bboxes, values, class_ids, distances, labels, thr=0.3):
     imgcv = np.copy(im)

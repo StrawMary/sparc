@@ -7,7 +7,7 @@ from torch.autograd import Variable
 from PIL import Image, ImageDraw
 import sys
 from collections import OrderedDict
-from vision.yolo3.utils import do_detect, plot_boxes, load_class_names
+from utils import do_detect, plot_boxes, load_class_names
 sys.path.append('/home/xiaohang/caffe/python')
 sys.path.append('.')
 import caffe

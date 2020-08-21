@@ -58,6 +58,12 @@ class DataProcessor:
     #                     Distances relatively to the robot
     ###############################################################################################
 
+    def get_point_distance(self, center, depth_image):
+        x, y = center
+        distance = depth_image[max(0, y)][min(639, x)]
+        distance = float(distance) / 255.0 * 3.28 + 0.4
+        return distance
+
     def compute_distance(self, depth_image, bbox, real_bbox=[], segmented_pixels=[]):
         # Adjust position from RGB image to depth image.
         left, top, right, bottom = bbox
@@ -117,6 +123,14 @@ class DataProcessor:
     ###############################################################################################
     #                     Angles relatively to the center of the camera
     ###############################################################################################
+
+    def compute_point_angles(self, center):
+        x, y = center
+
+        angle_x = ((self.cX - x) / float(self.cX)) * cfg.x_maximum_view_angle
+        angle_y = ((y - self.cY) / float(self.cY)) * cfg.y_maximum_view_angle
+
+        return math.radians(angle_x), math.radians(angle_y)
 
     def get_center(self, left, top, right, bottom):
         cX = left + (right - left) / 2

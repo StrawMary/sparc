@@ -10,10 +10,11 @@ from sensor_msgs.msg import Image as ImageMsg
 
 
 class ImageProvider:
-	def __init__(self):
+	def __init__(self, robot_stream=cfg.robot_stream):
 		self.connected = True
 		self.memory = None
-		if cfg.robot_stream:
+		self.robot_stream = robot_stream
+		if self.robot_stream:
 			self.bridge = CvBridge()
 
 			self.top_camera_subscriber = rospy.Subscriber('/pepper_robot/naoqi_driver/camera/front/image_raw', ImageMsg,
@@ -36,6 +37,7 @@ class ImageProvider:
 	def on_rgb_image_received(self, data):
 		try:
 			image = self.bridge.imgmsg_to_cv2(data, "bgr8")
+			image = cv2.resize(image, (vision_cfg.width, vision_cfg.height))
 			self.rgb_buffer.append(image)
 		except CvBridgeError, e:
 			print("Error converting")
@@ -68,7 +70,7 @@ class ImageProvider:
 		return opencv_image, opencv_image_depth, vision_cfg.top_camera_height, head_yaw, head_pitch
 
 	def get_image(self):
-		if cfg.robot_stream:
+		if self.robot_stream:
 			image, depth_image, camera_height, head_yaw, head_pitch = self.get_cv_image()
 		else:
 			_, image = self.camera.read()

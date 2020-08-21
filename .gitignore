@@ -87,3 +87,28 @@ ENV/
 
 # Rope project settings
 .ropeproject
+
+
+# sparc
+external_platform/results/
+external_platform/vision/facenet/input_dir/.*
+external_platform/vision/facenet/classifier/new_faces_classifier.pkl
+external_platform/vision/facenet/classifier/faces_classifier_04-04-2019.pkl
+external_platform/vision/yolo3/models/yolov3-tiny.weights
+external_platform/vision/yolo3/models/yolov3.weights
+external_platform/vision/yolo3/yolov3.weights
+external_platform/._37.p
+external_platform/._37.wav
+external_platform/0_3.p
+external_platform/0_3.wav
+external_platform/vision/facenet/input_dir/input_dir.zip
+external_platform/vision/facenet/out_dir/Adina/
+external_platform/vision/facenet/out_dir/bounding_boxes_52037.txt
+external_platform/vision/facenet/pre_model/model_v6_106.hdf5
+external_platform/vision/facenet/input_dir/Adina/
+external_platform/vision/yolo3/.gitignore
+external_platform/.idea/codeStyles/
+external_platform/.idea/encodings.xml
+external_platform/test.p
+external_platform/vision/.idea/
+

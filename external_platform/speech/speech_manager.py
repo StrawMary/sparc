@@ -6,6 +6,7 @@ import json
 import rospy
 import speech.speech_config as speech_cfg
 import threading
+import time
 
 from std_msgs.msg import String
 
@@ -29,7 +30,9 @@ class SpeechManager:
 
 		if self.robot_stream and app:
 			self.leds_service = app.session.service("ALLeds")
+			self.anim_speech_service = app.session.service("ALAnimatedSpeech")
 			self.speech_service = app.session.service("ALTextToSpeech")
+			self.speech_service.setParameter("speed", 85)
 
 		self.recognition_subscriber = rospy.Subscriber('/commands_text', String, self.on_text_received)
 
@@ -48,6 +51,7 @@ class SpeechManager:
 		self.on_going_say_promise_canceled = False
 
 	def say_async_callback(self, data):
+		#time.sleep(3)
 		if not self.on_going_say_promise_canceled:
 			if not data or data.hasError():
 				if self.on_fail:
@@ -62,7 +66,7 @@ class SpeechManager:
 			self.on_success = on_success
 			self.on_fail = on_fail
 			if text:
-				self.on_going_say_promise = self.speech_service.say(str(text), "English", _async=True)
+				self.on_going_say_promise = self.anim_speech_service.say(str(text), "English", _async=True)
 				self.on_going_say_promise.addCallback(self.say_async_callback)
 			else:
 				on_fail()
@@ -98,6 +102,8 @@ class SpeechManager:
 		self.timer.start()
 
 	def check_speech_recognized(self, text):
+		print(text)
+		print(self.listening_keywords)
 		if not self.listening_keywords and text:
 			on_success = self.on_success
 			self.clear_listen_attrs()
@@ -107,9 +113,8 @@ class SpeechManager:
 				on_success()
 			return
 
-		tokens = text.split(" ")
 		for key in self.listening_keywords:
-			if key in tokens:
+			if key in text:
 				on_success = self.on_success
 				self.clear_listen_attrs()
 				if on_success:

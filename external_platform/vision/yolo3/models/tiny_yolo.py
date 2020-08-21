@@ -94,7 +94,7 @@ class TinyYoloNet(nn.Module):
 
 if __name__ == '__main__':
     from PIL import Image
-    from vision.yolo3.utils import *
+    from utils import *
     m = TinyYoloNet() 
     m.float()
     m.eval()

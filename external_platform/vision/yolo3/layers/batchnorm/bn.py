@@ -1,11 +1,9 @@
 import torch
 import torch.nn as nn
-from torch.autograd import Function
 from torch.autograd import Variable
 from torch.nn.parameter import Parameter
-
+from torch.autograd import Function
 import bn_lib
-
 
 class BN2dFunc(Function):
     def __init__(self, running_mean, running_var, training, momentum, eps):

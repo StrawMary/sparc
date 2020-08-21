@@ -38,7 +38,7 @@ class Main(object):
 		self.task_manager.navigation_manager.load_default_positions()
 
 		if cfg.robot_stream:
-			self.task_manager.pose_manager.stand_init()
+			self.task_manager.navigation_manager.pose_manager.stand_init()
 
 		try:
 			while self.task_manager.vision_manager.is_running():
